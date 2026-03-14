@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Poker Tracker</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f1117;
+      color: #e0e0e0;
+      min-height: 100vh;
+    }
+
+    nav {
+      background: #1a1d27;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      border-bottom: 1px solid #2a2d3a;
+    }
+
+    nav h1 {
+      font-size: 1.2rem;
+      color: #c9a84c;
+      font-weight: 700;
+      margin-right: auto;
+    }
+
+    nav button {
+      background: none;
+      border: none;
+      color: #aaa;
+      cursor: pointer;
+      font-size: 0.95rem;
+      padding: 6px 12px;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+
+    nav button:hover, nav button.active {
+      background: #2a2d3a;
+      color: #fff;
+    }
+
+    .page { display: none; padding: 24px; max-width: 800px; margin: 0 auto; }
+    .page.active { display: block; }
+
+    h2 { font-size: 1.3rem; margin-bottom: 20px; color: #c9a84c; }
+
+    /* Card */
+    .card {
+      background: #1a1d27;
+      border: 1px solid #2a2d3a;
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .card .info { flex: 1; }
+    .card .name { font-weight: 600; font-size: 1rem; }
+    .card .sub { font-size: 0.82rem; color: #888; margin-top: 2px; }
+    .card .balance { font-weight: 700; font-size: 1rem; }
+    .balance.pos { color: #4caf82; }
+    .balance.neg { color: #e05c5c; }
+    .balance.zero { color: #888; }
+
+    .card .actions { display: flex; gap: 8px; }
+
+    /* Buttons */
+    .btn {
+      border: none;
+      border-radius: 6px;
+      padding: 8px 16px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      font-weight: 600;
+      transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary { background: #c9a84c; color: #0f1117; }
+    .btn-danger { background: #e05c5c; color: #fff; }
+    .btn-ghost { background: #2a2d3a; color: #ccc; }
+
+    /* Form */
+    .form-group { margin-bottom: 14px; }
+    label { display: block; font-size: 0.85rem; color: #aaa; margin-bottom: 6px; }
+    input {
+      width: 100%;
+      background: #12141e;
+      border: 1px solid #2a2d3a;
+      border-radius: 6px;
+      padding: 10px 12px;
+      color: #e0e0e0;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus { border-color: #c9a84c; }
+
+    .form-row { display: flex; gap: 10px; }
+    .form-row .form-group { flex: 1; }
+
+    .form-actions { display: flex; gap: 10px; margin-top: 6px; }
+
+    /* Add form panel */
+    .panel {
+      background: #1a1d27;
+      border: 1px solid #2a2d3a;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .panel h3 { font-size: 1rem; margin-bottom: 16px; color: #ccc; }
+
+    .empty { color: #555; text-align: center; padding: 40px 0; }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: #1a1d27;
+      border: 1px solid #2a2d3a;
+      border-radius: 12px;
+      padding: 24px;
+      width: 100%;
+      max-width: 420px;
+      margin: 16px;
+    }
+    .modal h3 { margin-bottom: 16px; color: #c9a84c; }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #2a2d3a;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 200;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <h1>♠ Poker Tracker</h1>
+  <button class="active" onclick="showPage('players')">Players</button>
+  <button onclick="showPage('sessions')">Games</button>
+  <button onclick="showPage('history')">History</button>
+</nav>
+
+<!-- PLAYERS PAGE -->
+<div id="page-players" class="page active">
+  <h2>Players</h2>
+
+  <div class="panel">
+    <h3>Add Player</h3>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Name</label>
+        <input id="add-name" type="text" placeholder="e.g. Marko" />
+      </div>
+      <div class="form-group">
+        <label>Bank Account</label>
+        <input id="add-bank" type="text" placeholder="18-digit account number" />
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="addPlayer()">Add Player</button>
+    </div>
+  </div>
+
+  <div id="players-list"></div>
+</div>
+
+<!-- SESSIONS PAGE -->
+<div id="page-sessions" class="page">
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+    <h2 style="margin-bottom:0;">Games</h2>
+    <button class="btn btn-primary" onclick="openNewSession()">+ New Game</button>
+  </div>
+  <div id="sessions-list"></div>
+</div>
+
+<!-- HISTORY PAGE -->
+<div id="page-history" class="page">
+  <h2 style="margin-bottom:20px;">History</h2>
+  <div id="history-list"></div>
+</div>
+
+<!-- HISTORY SETTLEMENT PAGE -->
+<div id="page-history-settlement" class="page">
+  <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
+    <button class="btn btn-ghost" onclick="showPage('history')">← Back</button>
+    <h2 style="margin-bottom:0; flex:1;" id="history-settlement-title"></h2>
+  </div>
+  <div id="history-settlement-content"></div>
+</div>
+
+<!-- SETTLEMENT PAGE -->
+<div id="page-settlement" class="page">
+  <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
+    <button class="btn btn-ghost" onclick="backToSessions()">← Back to Games</button>
+    <h2 style="margin-bottom:0;">Settlement</h2>
+  </div>
+  <div id="settlement-content"></div>
+</div>
+
+<!-- SESSION SCREEN -->
+<div id="page-session" class="page">
+  <!-- Top bar -->
+  <div style="margin-bottom:20px;">
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+      <h2 style="margin-bottom:0; flex:1;" id="session-title"></h2>
+      <span id="session-status-badge"></span>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <button class="btn btn-ghost" onclick="backToSessions()">← Back</button>
+      <div style="flex:1;"></div>
+      <button class="btn btn-danger" id="btn-close-session" onclick="closeSession()" style="display:none;">End Game</button>
+    </div>
+  </div>
+
+  <!-- Stats bar -->
+  <div style="display:flex; gap:12px; margin-bottom:20px;">
+    <div class="panel" style="flex:1; margin-bottom:0; text-align:center;">
+      <div style="font-size:0.8rem; color:#888; margin-bottom:4px;">Total Chips</div>
+      <div id="session-total-chips" style="font-size:1.4rem; font-weight:700; color:#c9a84c;">0</div>
+    </div>
+    <div class="panel" id="timer-panel" style="flex:1; margin-bottom:0; text-align:center; cursor:pointer;" onclick="handleTimerClick()">
+      <div style="font-size:0.8rem; color:#888; margin-bottom:4px;">Duration</div>
+      <div id="session-timer" style="font-size:1.4rem; font-weight:700; color:#c9a84c;">--:--</div>
+      <div id="timer-hint" style="font-size:0.75rem; color:#555; margin-top:2px;"></div>
+    </div>
+  </div>
+
+  <!-- Players in session -->
+  <!-- Add player button (only when open/waiting) -->
+  <div id="session-actions" style="margin-bottom:16px; display:none;">
+    <button class="btn btn-primary" style="width:100%;" onclick="openAddPlayerToSession()">+ Add Player</button>
+  </div>
+
+  <div id="session-players-list"></div>
+</div>
+
+<!-- QR Modal -->
+<div class="modal-overlay" id="qr-modal">
+  <div class="modal" style="text-align:center;">
+    <h3 id="qr-title">Pay to Player</h3>
+    <div class="form-group">
+      <label>Amount (RSD)</label>
+      <input id="qr-amount" type="number" min="1" step="100" placeholder="e.g. 500" />
+    </div>
+    <div class="form-actions" style="justify-content:center;">
+      <button class="btn btn-primary" onclick="generateQR()">Generate QR</button>
+      <button class="btn btn-ghost" onclick="closeQRModal()">Cancel</button>
+    </div>
+    <div id="qr-image-wrap" style="margin-top:16px; display:none;">
+      <img id="qr-image" src="" style="width:220px;height:220px;border-radius:8px;" />
+    </div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal">
+    <h3>Edit Player</h3>
+    <input type="hidden" id="edit-id" />
+    <div class="form-group">
+      <label>Name</label>
+      <input id="edit-name" type="text" />
+    </div>
+    <div class="form-group">
+      <label>Bank Account</label>
+      <input id="edit-bank" type="text" />
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="saveEdit()">Save</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- End Game Modal -->
+<div class="modal-overlay" id="end-game-modal">
+  <div class="modal" style="max-width:500px; max-height:90vh; overflow-y:auto;">
+    <h3>End Game — Final Chips</h3>
+    <div style="font-size:0.85rem; color:#888; margin-bottom:16px;">
+      Total buy-ins: <strong style="color:#c9a84c;" id="end-game-total-buyins"></strong> RSD
+    </div>
+    <div id="final-stacks-form"></div>
+    <div id="chip-mismatch" style="display:none; background:#2a1f1f; border:1px solid #e05c5c; border-radius:8px; padding:10px 14px; font-size:0.85rem; color:#e05c5c; margin-bottom:14px;"></div>
+    <div class="form-actions" style="margin-top:8px;">
+      <button class="btn btn-primary" onclick="submitEndGame()">Calculate Settlement</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('end-game-modal').classList.remove('open')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Player to Session Modal -->
+<div class="modal-overlay" id="add-player-session-modal">
+  <div class="modal">
+    <h3>Add Player</h3>
+    <div class="form-group">
+      <label>Player</label>
+      <select id="session-player-select" style="width:100%;background:#12141e;border:1px solid #2a2d3a;border-radius:6px;padding:10px 12px;color:#e0e0e0;font-size:0.95rem;outline:none;">
+        <option value="">Select player...</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Initial Buy-in (RSD)</label>
+      <input id="session-buyin-amount" type="number" min="100" step="100" placeholder="e.g. 1000" />
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="addPlayerToSession()">Add</button>
+      <button class="btn btn-ghost" onclick="closeAddPlayerToSession()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Re-buy Modal -->
+<div class="modal-overlay" id="rebuy-modal">
+  <div class="modal">
+    <h3 id="rebuy-title">Re-buy</h3>
+    <div class="form-group">
+      <label>Amount (RSD)</label>
+      <input id="rebuy-amount" type="number" min="100" step="100" placeholder="e.g. 1000" />
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="submitRebuy()">Confirm</button>
+      <button class="btn btn-ghost" onclick="closeRebuyModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- New Session Modal -->
+<div class="modal-overlay" id="new-session-modal">
+  <div class="modal">
+    <h3>New Session</h3>
+    <div class="form-group">
+      <label>Game Type</label>
+      <div style="display:flex; gap:10px; margin-top:4px;">
+        <button class="btn btn-ghost" id="type-cash" onclick="selectType('cash')" style="flex:1;">Cash Game</button>
+        <button class="btn btn-ghost" id="type-tournament" onclick="selectType('tournament')" style="flex:1;">Tournament</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Default Buy-in (RSD)</label>
+      <input id="new-session-buyin" type="number" min="0" step="100" placeholder="e.g. 1000" />
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="createSession()">Start Session</button>
+      <button class="btn btn-ghost" onclick="closeNewSession()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  function balanceClass(val) {
+    if (val > 0) return 'pos';
+    if (val < 0) return 'neg';
+    return 'zero';
+  }
+
+  function balanceLabel(val) {
+    if (val > 0) return '+' + val;
+    return val;
+  }
+
+  async function loadPlayers() {
+    const res = await fetch('/api/players');
+    const players = await res.json();
+    const list = document.getElementById('players-list');
+
+    if (players.length === 0) {
+      list.innerHTML = '<p class="empty">No players yet. Add one above.</p>';
+      return;
+    }
+
+    list.innerHTML = players.map(p => `
+      <div class="card">
+        <div class="info">
+          <div class="name">${p.name}</div>
+          ${p.pending_debt > 0 ? `<div class="sub" style="color:#e05c5c;">owes ${p.pending_debt.toLocaleString()} RSD</div>` : ''}
+          ${p.pending_receivable > 0 ? `<div class="sub" style="color:#4caf82;">expects ${p.pending_receivable.toLocaleString()} RSD</div>` : ''}
+        </div>
+        <div class="balance ${balanceClass(p.total_balance)}">${balanceLabel(p.total_balance)} RSD</div>
+        <div class="actions">
+          <button class="btn btn-ghost" onclick="openQR(${p.id}, '${p.name}')">QR</button>
+          <button class="btn btn-ghost" onclick="openEdit(${p.id}, '${p.name}', '${p.bank_account}')">Edit</button>
+          <button class="btn btn-danger" onclick="deletePlayer(${p.id}, '${p.name}')">Delete</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function addPlayer() {
+    const name = document.getElementById('add-name').value.trim();
+    const bank = document.getElementById('add-bank').value.trim();
+    if (!name || !bank) { showToast('Fill in all fields'); return; }
+
+    const res = await fetch('/api/players', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, bank_account: bank })
+    });
+
+    if (res.ok) {
+      document.getElementById('add-name').value = '';
+      document.getElementById('add-bank').value = '';
+      showToast('Player added');
+      loadPlayers();
+    } else {
+      const err = await res.json();
+      showToast(err.error);
+    }
+  }
+
+  function openEdit(id, name, bank) {
+    document.getElementById('edit-id').value = id;
+    document.getElementById('edit-name').value = name;
+    document.getElementById('edit-bank').value = bank;
+    document.getElementById('edit-modal').classList.add('open');
+  }
+
+  function closeModal() {
+    document.getElementById('edit-modal').classList.remove('open');
+  }
+
+  async function saveEdit() {
+    const id = document.getElementById('edit-id').value;
+    const name = document.getElementById('edit-name').value.trim();
+    const bank = document.getElementById('edit-bank').value.trim();
+
+    const res = await fetch(`/api/players/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, bank_account: bank })
+    });
+
+    if (res.ok) {
+      closeModal();
+      showToast('Player updated');
+      loadPlayers();
+    } else {
+      const err = await res.json();
+      showToast(err.error);
+    }
+  }
+
+  async function deletePlayer(id, name) {
+    if (!confirm(`Delete ${name}?`)) return;
+    const res = await fetch(`/api/players/${id}`, { method: 'DELETE' });
+    if (res.ok) { showToast('Player deleted'); loadPlayers(); }
+  }
+
+  let qrPlayerId = null;
+
+  function openQR(id, name) {
+    qrPlayerId = id;
+    document.getElementById('qr-title').textContent = `Pay to ${name}`;
+    document.getElementById('qr-amount').value = '';
+    document.getElementById('qr-image-wrap').style.display = 'none';
+    document.getElementById('qr-modal').classList.add('open');
+  }
+
+  function closeQRModal() {
+    document.getElementById('qr-modal').classList.remove('open');
+  }
+
+  function generateQR() {
+    const amount = document.getElementById('qr-amount').value.trim();
+    if (!amount || amount <= 0) { showToast('Enter a valid amount'); return; }
+    const img = document.getElementById('qr-image');
+    img.src = `/api/players/${qrPlayerId}/qr/${amount}`;
+    document.getElementById('qr-image-wrap').style.display = 'block';
+  }
+
+  // --- Session Screen ---
+  let currentSession = null;
+  let timerInterval = null;
+  let rebuySessionPlayerId = null;
+
+  function backToSessions() {
+    clearInterval(timerInterval);
+    currentSession = null;
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-sessions').classList.add('active');
+    loadSessions();
+  }
+
+  async function openSession(id) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+    const res = await fetch(`/api/sessions/${id}`);
+    const session = await res.json();
+    currentSession = session;
+    renderSessionScreen(session);
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    document.getElementById('page-session').classList.add('active');
+  }
+
+  function renderSessionScreen(session) {
+    const typeLabel = session.type === 'cash' ? 'Cash Game' : 'Tournament';
+    document.getElementById('session-title').textContent = `${typeLabel} #${session.id}`;
+
+    const isWaiting = session.status === 'waiting';
+    const isOpen = session.status === 'open';
+    const isClosed = session.status === 'closed';
+
+    document.getElementById('session-status-badge').innerHTML = isOpen
+      ? '<span style="color:#4caf82;font-size:0.85rem;font-weight:600;">● LIVE</span>'
+      : isWaiting
+        ? '<span style="color:#c9a84c;font-size:0.85rem;font-weight:600;">● WAITING</span>'
+        : '<span style="color:#888;font-size:0.85rem;">CLOSED</span>';
+
+    document.getElementById('btn-close-session').style.display = isOpen ? 'inline-block' : 'none';
+    document.getElementById('session-total-chips').textContent = session.total_chips.toLocaleString() + ' RSD';
+
+    document.getElementById('session-actions').style.display = (isOpen || isWaiting) ? 'block' : 'none';
+
+    // Timer panel
+    clearInterval(timerInterval);
+    timerInterval = null;
+    document.getElementById('timer-panel').style.cursor = isWaiting ? 'pointer' : 'default';
+
+    const timerEl = document.getElementById('session-timer');
+    const hintEl = document.getElementById('timer-hint');
+    if (isOpen && session.started_at) {
+      timerEl.style.color = '#4caf82';
+      hintEl.textContent = '';
+      startTimer(session.started_at);
+    } else if (isWaiting || !session.started_at) {
+      timerEl.textContent = '--:--';
+      timerEl.style.color = '#4caf82';
+      hintEl.innerHTML = '<span style="color:#4caf82; font-size:0.8rem; font-weight:600;">▶ Tap to start</span>';
+    } else {
+      timerEl.style.color = '#888';
+      hintEl.textContent = '';
+    }
+
+    const list = document.getElementById('session-players-list');
+    if (session.players.length === 0) {
+      list.innerHTML = isWaiting
+        ? '<p class="empty">Game not started yet. Tap the timer to start, or add players first.</p>'
+        : '<p class="empty">No players in this game.</p>';
+      return;
+    }
+
+    list.innerHTML = session.players.map(p => `
+      <div onclick="${isOpen ? `openRebuy(${p.id}, '${p.player_name}')` : ''}"
+        style="
+        background: linear-gradient(135deg, #1e2130 0%, #161926 100%);
+        border: 1px solid #2e3347;
+        border-left: 4px solid #c9a84c;
+        border-radius: 12px;
+        padding: 16px 18px;
+        margin-bottom: 10px;
+        ${isOpen ? 'cursor:pointer;' : ''}
+        transition: border-color 0.2s, background 0.2s;
+      " ${isOpen ? `onmouseover="this.style.borderColor='#c9a84c';this.style.background='linear-gradient(135deg,#252838 0%,#1a1d2a 100%)'" onmouseout="this.style.borderColor='#2e3347';this.style.background='linear-gradient(135deg,#1e2130 0%,#161926 100%)'"` : ''}>
+        <!-- Top row: name + total -->
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+          <div style="font-size:1.15rem; font-weight:700; color:#fff; letter-spacing:0.3px;">${p.player_name}</div>
+          <div style="display:flex; align-items:baseline; gap:4px;">
+            <span style="font-size:1.4rem; font-weight:800; color:#c9a84c;">${p.total_buyin.toLocaleString()}</span>
+            <span style="font-size:0.78rem; color:#666; font-weight:500;">RSD</span>
+          </div>
+        </div>
+        <!-- Buy-in pills -->
+        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:${isOpen || isWaiting ? '12px' : '0'};">
+          ${p.buyins.map((b, i) => `
+            <span style="
+              background: #0f1117;
+              border: 1px solid #2a2d3a;
+              border-radius: 6px;
+              padding: 4px 10px;
+              font-size: 0.78rem;
+              color: #888;
+            ">Buy-in ${i+1} &nbsp;<strong style="color:#c9a84c;">${b.amount.toLocaleString()}</strong></span>
+          `).join('')}
+        </div>
+        ${isOpen ? `<div style="text-align:right; font-size:0.75rem; color:#555; margin-top:4px;">tap to re-buy</div>` : ''}
+        ${isWaiting ? `
+          <div style="display:flex; justify-content:flex-end;">
+            <button onclick="removePlayerFromSession(${p.id}, '${p.player_name}')" style="
+              background: transparent;
+              border: 1px solid #e05c5c;
+              color: #e05c5c;
+              border-radius: 8px;
+              padding: 7px 18px;
+              font-size: 0.85rem;
+              font-weight: 600;
+              cursor: pointer;
+              transition: all 0.2s;
+            " onmouseover="this.style.background='#e05c5c';this.style.color='#fff'"
+               onmouseout="this.style.background='transparent';this.style.color='#e05c5c'">
+              Remove
+            </button>
+          </div>
+        ` : ''}
+      </div>
+    `).join('');
+  }
+
+  function startTimer(startedAt) {
+    clearInterval(timerInterval);
+    if (!startedAt.endsWith('Z')) startedAt += 'Z';
+    const start = new Date(startedAt).getTime();
+    function tick() {
+      const elapsed = Math.floor((Date.now() - start) / 1000);
+      const h = Math.floor(elapsed / 3600);
+      const m = Math.floor((elapsed % 3600) / 60);
+      const s = elapsed % 60;
+      const pad = n => String(n).padStart(2, '0');
+      document.getElementById('session-timer').textContent =
+        h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+    }
+    tick();
+    timerInterval = setInterval(tick, 1000);
+  }
+
+  async function handleTimerClick() {
+    if (!currentSession || currentSession.status !== 'waiting') return;
+    const res = await fetch(`/api/sessions/${currentSession.id}/start`, { method: 'POST' });
+    if (res.ok) {
+      await openSession(currentSession.id);
+    }
+  }
+
+  async function openAddPlayerToSession() {
+    const res = await fetch('/api/players');
+    const allPlayers = await res.json();
+    const inSession = currentSession.players.map(p => p.player_id);
+    const available = allPlayers.filter(p => !inSession.includes(p.id));
+
+    const select = document.getElementById('session-player-select');
+    select.innerHTML = '<option value="">Select player...</option>' +
+      available.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+    document.getElementById('session-buyin-amount').value = currentSession.default_buyin || '';
+    document.getElementById('add-player-session-modal').classList.add('open');
+  }
+
+  function closeAddPlayerToSession() {
+    document.getElementById('add-player-session-modal').classList.remove('open');
+  }
+
+  async function addPlayerToSession() {
+    const player_id = document.getElementById('session-player-select').value;
+    const amount = document.getElementById('session-buyin-amount').value;
+    if (!player_id) { showToast('Select a player'); return; }
+    if (!amount || amount <= 0) { showToast('Enter a valid amount'); return; }
+
+    const res = await fetch(`/api/sessions/${currentSession.id}/players`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ player_id: parseInt(player_id), amount: parseInt(amount) })
+    });
+
+    if (res.ok) {
+      closeAddPlayerToSession();
+      showToast('Player added');
+      await openSession(currentSession.id);
+    } else {
+      const err = await res.json();
+      showToast(err.error);
+    }
+  }
+
+  function openRebuy(sessionPlayerId, name) {
+    rebuySessionPlayerId = sessionPlayerId;
+    document.getElementById('rebuy-title').textContent = `Re-buy — ${name}`;
+    document.getElementById('rebuy-amount').value = '';
+    document.getElementById('rebuy-modal').classList.add('open');
+  }
+
+  function closeRebuyModal() {
+    document.getElementById('rebuy-modal').classList.remove('open');
+  }
+
+  async function submitRebuy() {
+    const amount = document.getElementById('rebuy-amount').value;
+    if (!amount || amount <= 0) { showToast('Enter a valid amount'); return; }
+
+    const res = await fetch(`/api/sessions/${currentSession.id}/players/${rebuySessionPlayerId}/buyin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount: parseInt(amount) })
+    });
+
+    if (res.ok) {
+      closeRebuyModal();
+      showToast('Re-buy recorded');
+      await openSession(currentSession.id);
+    } else {
+      const err = await res.json();
+      showToast(err.error);
+    }
+  }
+
+  async function removePlayerFromSession(sessionPlayerId, name) {
+    if (!confirm(`Remove ${name} from this game?`)) return;
+    const res = await fetch(`/api/sessions/${currentSession.id}/players/${sessionPlayerId}`, { method: 'DELETE' });
+    if (res.ok) {
+      showToast(`${name} removed`);
+      await openSession(currentSession.id);
+    }
+  }
+
+  function closeSession() {
+    // Build final stacks form
+    const players = currentSession.players;
+    const totalBuyins = players.reduce((s, p) => s + p.total_buyin, 0);
+    document.getElementById('end-game-total-buyins').textContent = totalBuyins.toLocaleString();
+
+    const form = document.getElementById('final-stacks-form');
+    form.innerHTML = players.map(p => `
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+        <div style="flex:1; font-weight:600;">${p.player_name}</div>
+        <div style="font-size:0.8rem; color:#888;">${p.total_buyin.toLocaleString()} in</div>
+        <input type="number" min="0" step="100"
+          id="final-${p.id}"
+          placeholder="Final chips"
+          style="width:140px; background:#12141e; border:1px solid #2a2d3a; border-radius:6px; padding:8px 10px; color:#e0e0e0; font-size:0.95rem; outline:none;"
+          oninput="updateChipMismatch()"
+        />
+      </div>
+    `).join('');
+
+    document.getElementById('chip-mismatch').style.display = 'none';
+    document.getElementById('end-game-modal').classList.add('open');
+  }
+
+  function updateChipMismatch() {
+    const players = currentSession.players;
+    const totalBuyins = players.reduce((s, p) => s + p.total_buyin, 0);
+    const totalFinal = players.reduce((s, p) => {
+      const val = parseInt(document.getElementById(`final-${p.id}`)?.value) || 0;
+      return s + val;
+    }, 0);
+    const mismatch = document.getElementById('chip-mismatch');
+    if (totalFinal > 0 && totalFinal !== totalBuyins) {
+      const diff = totalFinal - totalBuyins;
+      mismatch.style.display = 'block';
+      mismatch.innerHTML = `⚠️ Chip mismatch: entered <strong style="color:#e0e0e0">${totalFinal.toLocaleString()}</strong>, expected <strong style="color:#e0e0e0">${totalBuyins.toLocaleString()}</strong> (${diff > 0 ? '+' : ''}${diff.toLocaleString()} RSD)`;
+    } else {
+      mismatch.style.display = 'none';
+    }
+  }
+
+  async function submitEndGame() {
+    const players = currentSession.players;
+    const totalBuyins = players.reduce((s, p) => s + p.total_buyin, 0);
+
+    const finalStacks = players.map(p => ({
+      session_player_id: p.id,
+      final_chips: parseInt(document.getElementById(`final-${p.id}`)?.value) || 0
+    }));
+
+    const totalFinal = finalStacks.reduce((s, e) => s + e.final_chips, 0);
+    const mismatch = totalFinal !== totalBuyins;
+
+    if (mismatch) {
+      const diff = totalFinal - totalBuyins;
+      const proceed = confirm(`Chip mismatch detected!\n\nEntered: ${totalFinal.toLocaleString()} RSD\nExpected: ${totalBuyins.toLocaleString()} RSD\nDifference: ${diff > 0 ? '+' : ''}${diff.toLocaleString()} RSD\n\nProceed anyway?`);
+      if (!proceed) return;
+    }
+
+    const res = await fetch(`/api/sessions/${currentSession.id}/finalize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ final_stacks: finalStacks })
+    });
+
+    if (res.ok) {
+      const result = await res.json();
+      document.getElementById('end-game-modal').classList.remove('open');
+      showSettlement(result);
+    } else {
+      const err = await res.json();
+      showToast(err.error);
+    }
+  }
+
+  function showSettlement(result) {
+    renderSettlementContent('settlement-content', result.transactions, result.net_balances);
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-settlement').classList.add('active');
+  }
+
+  async function confirmTransaction(txId) {
+    const res = await fetch(`/api/transactions/${txId}/confirm`, { method: 'POST' });
+    if (res.ok) {
+      markTransactionConfirmed(txId);
+      loadPlayers(); // refresh debt badges
+    } else {
+      const err = await res.json();
+      showToast(err.error);
+    }
+  }
+
+  function markTransactionConfirmed(txId) {
+    const card = document.getElementById(`tx-card-${txId}`);
+    const btn = document.getElementById(`tx-confirm-${txId}`);
+    if (!card) return;
+    card.style.borderLeftColor = '#4caf82';
+    card.style.opacity = '0.6';
+    btn.textContent = '✓ Paid';
+    btn.style.background = '#4caf82';
+    btn.style.color = '#0f1117';
+    btn.disabled = true;
+  }
+
+  function showQRForTransaction(toPlayerId, amount, toPlayerName) {
+    document.getElementById('qr-title').textContent = `Pay to ${toPlayerName}`;
+    document.getElementById('qr-amount').value = amount;
+    document.getElementById('qr-image-wrap').style.display = 'block';
+    document.getElementById('qr-image').src = `/api/players/${toPlayerId}/qr/${amount}`;
+    document.getElementById('qr-modal').classList.add('open');
+  }
+
+  // --- History ---
+  async function loadHistory() {
+    const res = await fetch('/api/sessions');
+    const sessions = await res.json();
+    const closed = sessions.filter(s => s.status === 'closed');
+    const list = document.getElementById('history-list');
+
+    if (closed.length === 0) {
+      list.innerHTML = '<p class="empty">No completed games yet.</p>';
+      return;
+    }
+
+    list.innerHTML = closed.map(s => {
+      const typeLabel = s.type === 'cash' ? 'Cash Game' : 'Tournament';
+      const date = s.started_at
+        ? new Date(s.started_at + 'Z').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+        : 'Unknown date';
+      return `
+        <div class="card" style="cursor:pointer;" onclick="openHistorySettlement(${s.id}, '${typeLabel} #${s.id}')">
+          <div class="info">
+            <div class="name">${typeLabel} #${s.id}</div>
+            <div class="sub">${date}</div>
+          </div>
+          <span style="color:#888; font-size:0.85rem;">View →</span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function openHistorySettlement(sessionId, title) {
+    const res = await fetch(`/api/sessions/${sessionId}/settlement`);
+    const data = await res.json();
+    document.getElementById('history-settlement-title').textContent = title;
+    renderSettlementContent('history-settlement-content', data.transactions, data.net_balances);
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-history-settlement').classList.add('active');
+  }
+
+  function renderSettlementContent(containerId, transactions, net_balances) {
+    const container = document.getElementById(containerId);
+
+    const netHtml = net_balances.map(p => {
+      const color = p.net > 0 ? '#4caf82' : p.net < 0 ? '#e05c5c' : '#888';
+      const label = p.net > 0 ? `+${p.net.toLocaleString()}` : p.net.toLocaleString();
+      return `
+        <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #1e2130;">
+          <span style="font-weight:600;">${p.player_name}</span>
+          <span style="font-weight:700; color:${color};">${label} RSD</span>
+        </div>
+      `;
+    }).join('');
+
+    const txHtml = transactions.length === 0
+      ? '<p style="color:#888; text-align:center; padding:16px 0;">No payments needed — everyone is settled!</p>'
+      : transactions.map(t => `
+        <div id="tx-card-${t.id}" style="
+          background: linear-gradient(135deg, #1e2130, #161926);
+          border: 1px solid #2e3347;
+          border-left: 4px solid ${t.confirmed ? '#4caf82' : '#e05c5c'};
+          border-radius: 12px;
+          padding: 14px 16px;
+          margin-bottom: 10px;
+          opacity: ${t.confirmed ? '0.6' : '1'};
+          transition: all 0.3s;
+        ">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+            <div>
+              <span style="font-weight:700; color:#fff;">${t.from_player_name}</span>
+              <span style="color:#888; margin:0 8px;">→</span>
+              <span style="font-weight:700; color:#fff;">${t.to_player_name}</span>
+            </div>
+            <div style="font-size:1.2rem; font-weight:800; color:#c9a84c;">${t.amount.toLocaleString()} <span style="font-size:0.75rem; color:#666;">RSD</span></div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button onclick="showQRForTransaction(${t.to_player_id}, ${t.amount}, '${t.to_player_name}')" style="
+              flex:1; background:transparent; border:1px solid #c9a84c; color:#c9a84c;
+              border-radius:8px; padding:8px; font-size:0.85rem; font-weight:600; cursor:pointer;
+            ">Show QR</button>
+            <button id="tx-confirm-${t.id}" onclick="confirmTransaction(${t.id})"
+              ${t.confirmed ? 'disabled' : ''}
+              style="
+              flex:1; background:${t.confirmed ? '#4caf82' : 'transparent'};
+              border:1px solid #4caf82; color:${t.confirmed ? '#0f1117' : '#4caf82'};
+              border-radius:8px; padding:8px; font-size:0.85rem; font-weight:600; cursor:${t.confirmed ? 'default' : 'pointer'};
+            ">${t.confirmed ? '✓ Paid' : '✓ Confirm'}</button>
+          </div>
+        </div>
+      `).join('');
+
+    container.innerHTML = `
+      <div style="margin-bottom:20px;">
+        <div style="font-size:0.85rem; color:#888; margin-bottom:8px; text-transform:uppercase; letter-spacing:1px;">Results</div>
+        ${netHtml}
+      </div>
+      <div>
+        <div style="font-size:0.85rem; color:#888; margin-bottom:8px; text-transform:uppercase; letter-spacing:1px;">Payments</div>
+        ${txHtml}
+      </div>
+    `;
+  }
+
+  // --- Sessions ---
+  let selectedType = null;
+
+  function openNewSession() {
+    selectedType = null;
+    document.getElementById('type-cash').classList.remove('btn-primary');
+    document.getElementById('type-cash').classList.add('btn-ghost');
+    document.getElementById('type-tournament').classList.remove('btn-primary');
+    document.getElementById('type-tournament').classList.add('btn-ghost');
+    document.getElementById('new-session-buyin').value = '';
+    document.getElementById('new-session-modal').classList.add('open');
+  }
+
+  function closeNewSession() {
+    document.getElementById('new-session-modal').classList.remove('open');
+  }
+
+  function selectType(type) {
+    selectedType = type;
+    document.getElementById('type-cash').classList.toggle('btn-primary', type === 'cash');
+    document.getElementById('type-cash').classList.toggle('btn-ghost', type !== 'cash');
+    document.getElementById('type-tournament').classList.toggle('btn-primary', type === 'tournament');
+    document.getElementById('type-tournament').classList.toggle('btn-ghost', type !== 'tournament');
+  }
+
+  async function createSession() {
+    if (!selectedType) { showToast('Select a game type'); return; }
+    const default_buyin = parseInt(document.getElementById('new-session-buyin').value) || 0;
+    const res = await fetch('/api/sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: selectedType, default_buyin })
+    });
+    if (res.ok) {
+      closeNewSession();
+      showToast('Session started');
+      loadSessions();
+    } else {
+      const err = await res.json();
+      showToast(err.error);
+    }
+  }
+
+  async function loadSessions() {
+    const res = await fetch('/api/sessions');
+    const sessions = await res.json();
+    const list = document.getElementById('sessions-list');
+
+    if (sessions.length === 0) {
+      list.innerHTML = '<p class="empty">No sessions yet. Start one above.</p>';
+      return;
+    }
+
+    list.innerHTML = sessions.map(s => {
+      const started = new Date(s.started_at);
+      const dateStr = started.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+      const badge = s.status === 'open'
+        ? '<span style="color:#4caf82;font-size:0.8rem;font-weight:600;">● LIVE</span>'
+        : s.status === 'waiting'
+          ? '<span style="color:#c9a84c;font-size:0.8rem;font-weight:600;">● WAITING</span>'
+          : '<span style="color:#888;font-size:0.8rem;">CLOSED</span>';
+      const typeBadge = s.type === 'cash' ? 'Cash Game' : 'Tournament';
+      return `
+        <div class="card" style="cursor:pointer;" onclick="openSession(${s.id})">
+          <div class="info">
+            <div class="name">${typeBadge} #${s.id}</div>
+            <div class="sub">${dateStr}</div>
+          </div>
+          ${badge}
+        </div>
+      `;
+    }).join('');
+  }
+
+  function showPage(name) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    document.getElementById('page-' + name).classList.add('active');
+    if (event && event.target) event.target.classList.add('active');
+    if (name === 'sessions') loadSessions();
+    if (name === 'history') loadHistory();
+    if (name === 'players') loadPlayers();
+  }
+
+  loadPlayers();
+</script>
+</body>
+</html>
