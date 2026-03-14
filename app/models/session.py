@@ -10,6 +10,8 @@ class Session(db.Model):
     status = db.Column(db.String(10), nullable=False, default="waiting")  # waiting, open, closed
     default_buyin = db.Column(db.Integer, nullable=False, default=0)
     started_at = db.Column(db.DateTime, nullable=True)
+    ended_at = db.Column(db.DateTime, nullable=True)
+    deleted = db.Column(db.Boolean, nullable=False, default=False)
 
     def to_dict(self):
         return {
@@ -18,4 +20,6 @@ class Session(db.Model):
             "status": self.status,
             "default_buyin": self.default_buyin,
             "started_at": self.started_at.isoformat() if self.started_at else None,
+            "ended_at": self.ended_at.isoformat() if self.ended_at else None,
+            "deleted": self.deleted,
         }

@@ -208,6 +208,13 @@
 <div id="page-history" class="page">
   <h2 style="margin-bottom:20px;">History</h2>
   <div id="history-list"></div>
+  <div style="margin-top:24px;">
+    <div onclick="toggleDeletedGames()" style="cursor:pointer; display:flex; align-items:center; gap:8px; color:#555; font-size:0.88rem; margin-bottom:12px;">
+      <span id="deleted-toggle-icon">▶</span>
+      <span>Deleted Games</span>
+    </div>
+    <div id="deleted-games-list" style="display:none;"></div>
+  </div>
 </div>
 
 <!-- HISTORY SETTLEMENT PAGE -->
@@ -351,6 +358,22 @@
     <div class="form-actions">
       <button class="btn btn-primary" onclick="submitRebuy()">Confirm</button>
       <button class="btn btn-ghost" onclick="closeRebuyModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Cash Out Modal -->
+<div class="modal-overlay" id="cashout-modal">
+  <div class="modal">
+    <h3 id="cashout-title">Cash Out</h3>
+    <div style="font-size:0.85rem; color:#888; margin-bottom:14px;">Player removes chips from the table. This reduces their effective buy-in.</div>
+    <div class="form-group">
+      <label>Amount (RSD)</label>
+      <input id="cashout-amount" type="number" min="100" step="100" placeholder="e.g. 500" />
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="submitCashOut()">Confirm</button>
+      <button class="btn btn-ghost" onclick="closeCashOutModal()">Cancel</button>
     </div>
   </div>
 </div>
@@ -566,9 +589,10 @@
       timerEl.textContent = '--:--';
       timerEl.style.color = '#4caf82';
       hintEl.innerHTML = '<span style="color:#4caf82; font-size:0.8rem; font-weight:600;">▶ Tap to start</span>';
-    } else {
+    } else if (isClosed && session.started_at) {
       timerEl.style.color = '#888';
       hintEl.textContent = '';
+      timerEl.textContent = formatDuration(session.started_at, session.ended_at);
     }
 
     const list = document.getElementById('session-players-list');
@@ -580,17 +604,14 @@
     }
 
     list.innerHTML = session.players.map(p => `
-      <div onclick="${isOpen ? `openRebuy(${p.id}, '${p.player_name}')` : ''}"
-        style="
+      <div style="
         background: linear-gradient(135deg, #1e2130 0%, #161926 100%);
         border: 1px solid #2e3347;
         border-left: 4px solid #c9a84c;
         border-radius: 12px;
         padding: 16px 18px;
         margin-bottom: 10px;
-        ${isOpen ? 'cursor:pointer;' : ''}
-        transition: border-color 0.2s, background 0.2s;
-      " ${isOpen ? `onmouseover="this.style.borderColor='#c9a84c';this.style.background='linear-gradient(135deg,#252838 0%,#1a1d2a 100%)'" onmouseout="this.style.borderColor='#2e3347';this.style.background='linear-gradient(135deg,#1e2130 0%,#161926 100%)'"` : ''}>
+      ">
         <!-- Top row: name + total -->
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
           <div style="font-size:1.15rem; font-weight:700; color:#fff; letter-spacing:0.3px;">${p.player_name}</div>
@@ -601,18 +622,28 @@
         </div>
         <!-- Buy-in pills -->
         <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:${isOpen || isWaiting ? '12px' : '0'};">
-          ${p.buyins.map((b, i) => `
-            <span style="
-              background: #0f1117;
-              border: 1px solid #2a2d3a;
-              border-radius: 6px;
-              padding: 4px 10px;
-              font-size: 0.78rem;
-              color: #888;
-            ">Buy-in ${i+1} &nbsp;<strong style="color:#c9a84c;">${b.amount.toLocaleString()}</strong></span>
+          ${p.buyins.map((b, i) => b.amount < 0 ? `
+            <span style="background:#0f1117; border:1px solid #2a2d3a; border-radius:6px; padding:4px 10px; font-size:0.78rem; color:#888;">
+              Cash Out &nbsp;<strong style="color:#e05c5c;">${b.amount.toLocaleString()}</strong>
+            </span>
+          ` : `
+            <span style="background:#0f1117; border:1px solid #2a2d3a; border-radius:6px; padding:4px 10px; font-size:0.78rem; color:#888;">
+              Buy-in ${i+1} &nbsp;<strong style="color:#c9a84c;">${b.amount.toLocaleString()}</strong>
+            </span>
           `).join('')}
         </div>
-        ${isOpen ? `<div style="text-align:right; font-size:0.75rem; color:#555; margin-top:4px;">tap to re-buy</div>` : ''}
+        ${isOpen ? `
+          <div style="display:flex; gap:8px; margin-top:4px;">
+            <button onclick="openRebuy(${p.id}, '${p.player_name}')" style="
+              flex:1; background:transparent; border:1px solid #c9a84c; color:#c9a84c;
+              border-radius:8px; padding:7px; font-size:0.82rem; font-weight:600; cursor:pointer;
+            ">+ Re-buy</button>
+            <button onclick="openCashOut(${p.id}, '${p.player_name}')" style="
+              flex:1; background:transparent; border:1px solid #888; color:#888;
+              border-radius:8px; padding:7px; font-size:0.82rem; font-weight:600; cursor:pointer;
+            ">Cash Out</button>
+          </div>
+        ` : ''}
         ${isWaiting ? `
           <div style="display:flex; justify-content:flex-end;">
             <button onclick="removePlayerFromSession(${p.id}, '${p.player_name}')" style="
@@ -633,6 +664,18 @@
         ` : ''}
       </div>
     `).join('');
+  }
+
+  function formatDuration(startedAt, endedAt = null) {
+    if (!startedAt) return '--:--';
+    if (!startedAt.endsWith('Z')) startedAt += 'Z';
+    const end = endedAt ? new Date((endedAt.endsWith('Z') ? endedAt : endedAt + 'Z')).getTime() : Date.now();
+    const elapsed = Math.floor((end - new Date(startedAt).getTime()) / 1000);
+    const h = Math.floor(elapsed / 3600);
+    const m = Math.floor((elapsed % 3600) / 60);
+    const s = elapsed % 60;
+    const pad = n => String(n).padStart(2, '0');
+    return h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
   }
 
   function startTimer(startedAt) {
@@ -708,6 +751,39 @@
 
   function closeRebuyModal() {
     document.getElementById('rebuy-modal').classList.remove('open');
+  }
+
+  let cashOutSessionPlayerId = null;
+
+  function openCashOut(sessionPlayerId, name) {
+    cashOutSessionPlayerId = sessionPlayerId;
+    document.getElementById('cashout-title').textContent = `Cash Out — ${name}`;
+    document.getElementById('cashout-amount').value = '';
+    document.getElementById('cashout-modal').classList.add('open');
+  }
+
+  function closeCashOutModal() {
+    document.getElementById('cashout-modal').classList.remove('open');
+  }
+
+  async function submitCashOut() {
+    const amount = document.getElementById('cashout-amount').value;
+    if (!amount || amount <= 0) { showToast('Enter a valid amount'); return; }
+
+    const res = await fetch(`/api/sessions/${currentSession.id}/players/${cashOutSessionPlayerId}/buyin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount: -parseInt(amount) })
+    });
+
+    if (res.ok) {
+      closeCashOutModal();
+      showToast('Cash out recorded');
+      await openSession(currentSession.id);
+    } else {
+      const err = await res.json();
+      showToast(err.error);
+    }
   }
 
   async function submitRebuy() {
@@ -869,15 +945,73 @@
         ? new Date(s.started_at + 'Z').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
         : 'Unknown date';
       return `
-        <div class="card" style="cursor:pointer;" onclick="openHistorySettlement(${s.id}, '${typeLabel} #${s.id}')">
+        <div class="card">
+          <div class="info" style="cursor:pointer;" onclick="openHistorySettlement(${s.id}, '${typeLabel} #${s.id}')">
+            <div class="name">${typeLabel} #${s.id}</div>
+            <div class="sub">${date}</div>
+          </div>
+          <span style="color:#888; font-size:0.85rem; cursor:pointer; margin-right:12px;" onclick="openHistorySettlement(${s.id}, '${typeLabel} #${s.id}')">View →</span>
+          <button class="btn btn-danger" style="padding:6px 12px; font-size:0.82rem;" onclick="deleteGame(${s.id})">Delete</button>
+        </div>
+      `;
+    }).join('');
+  }
+
+  let deletedGamesVisible = false;
+
+  async function toggleDeletedGames() {
+    deletedGamesVisible = !deletedGamesVisible;
+    document.getElementById('deleted-toggle-icon').textContent = deletedGamesVisible ? '▼' : '▶';
+    const container = document.getElementById('deleted-games-list');
+    container.style.display = deletedGamesVisible ? 'block' : 'none';
+    if (deletedGamesVisible) await loadDeletedGames();
+  }
+
+  async function loadDeletedGames() {
+    const res = await fetch('/api/sessions/deleted');
+    const sessions = await res.json();
+    const container = document.getElementById('deleted-games-list');
+
+    if (sessions.length === 0) {
+      container.innerHTML = '<p class="empty" style="padding:16px 0;">No deleted games.</p>';
+      return;
+    }
+
+    container.innerHTML = sessions.map(s => {
+      const typeLabel = s.type === 'cash' ? 'Cash Game' : 'Tournament';
+      const date = s.started_at
+        ? new Date(s.started_at + 'Z').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+        : 'Unknown date';
+      return `
+        <div class="card" style="opacity:0.6;">
           <div class="info">
             <div class="name">${typeLabel} #${s.id}</div>
             <div class="sub">${date}</div>
           </div>
-          <span style="color:#888; font-size:0.85rem;">View →</span>
+          <button class="btn btn-ghost" style="padding:6px 12px; font-size:0.82rem;" onclick="restoreGame(${s.id})">Restore</button>
         </div>
       `;
     }).join('');
+  }
+
+  async function restoreGame(sessionId) {
+    const res = await fetch(`/api/sessions/${sessionId}/restore`, { method: 'POST' });
+    if (res.ok) {
+      showToast('Game restored');
+      loadHistory();
+      loadDeletedGames();
+      loadPlayers();
+    }
+  }
+
+  async function deleteGame(sessionId) {
+    if (!confirm('Delete this game? All data and balance changes will be reversed.')) return;
+    const res = await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' });
+    if (res.ok) {
+      showToast('Game deleted');
+      loadHistory();
+      loadPlayers();
+    }
   }
 
   async function openHistorySettlement(sessionId, title) {
@@ -1006,8 +1140,10 @@
     }
 
     list.innerHTML = sessions.map(s => {
-      const started = new Date(s.started_at);
-      const dateStr = started.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+      const startedRaw = s.started_at ? (s.started_at.endsWith('Z') ? s.started_at : s.started_at + 'Z') : null;
+      const dateStr = startedRaw
+        ? new Date(startedRaw).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })
+        : 'Not started';
       const badge = s.status === 'open'
         ? '<span style="color:#4caf82;font-size:0.8rem;font-weight:600;">● LIVE</span>'
         : s.status === 'waiting'

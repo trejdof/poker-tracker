@@ -13,7 +13,13 @@ sessions_bp = Blueprint("sessions", __name__)
 
 @sessions_bp.route("/sessions", methods=["GET"])
 def get_sessions():
-    sessions = Session.query.order_by(Session.id.desc()).all()
+    sessions = Session.query.filter_by(deleted=False).order_by(Session.id.desc()).all()
+    return jsonify([s.to_dict() for s in sessions])
+
+
+@sessions_bp.route("/sessions/deleted", methods=["GET"])
+def get_deleted_sessions():
+    sessions = Session.query.filter_by(deleted=True).order_by(Session.id.desc()).all()
     return jsonify([s.to_dict() for s in sessions])
 
 
@@ -88,6 +94,7 @@ def finalize_session(session_id):
         saved.append(t)
 
     session.status = "closed"
+    session.ended_at = datetime.now(timezone.utc)
     db.session.commit()
 
     return jsonify({
@@ -97,6 +104,46 @@ def finalize_session(session_id):
             for pid, net in net_balances.items()
         ]
     })
+
+
+@sessions_bp.route("/sessions/<int:session_id>", methods=["DELETE"])
+def delete_session(session_id):
+    session = db.get_or_404(Session, session_id)
+    if session.deleted:
+        return jsonify({"error": "Already deleted"}), 400
+
+    # Reverse confirmed transaction effects on player balances
+    transactions = Transaction.query.filter_by(session_id=session_id).all()
+    for t in transactions:
+        if t.confirmed:
+            from_player = db.session.get(Player, t.from_player_id)
+            to_player = db.session.get(Player, t.to_player_id)
+            from_player.total_balance += t.amount
+            to_player.total_balance -= t.amount
+
+    session.deleted = True
+    db.session.commit()
+    return jsonify({"message": "Game deleted"})
+
+
+@sessions_bp.route("/sessions/<int:session_id>/restore", methods=["POST"])
+def restore_session(session_id):
+    session = db.get_or_404(Session, session_id)
+    if not session.deleted:
+        return jsonify({"error": "Game is not deleted"}), 400
+
+    # Re-apply confirmed transaction effects on player balances
+    transactions = Transaction.query.filter_by(session_id=session_id).all()
+    for t in transactions:
+        if t.confirmed:
+            from_player = db.session.get(Player, t.from_player_id)
+            to_player = db.session.get(Player, t.to_player_id)
+            from_player.total_balance -= t.amount
+            to_player.total_balance += t.amount
+
+    session.deleted = False
+    db.session.commit()
+    return jsonify({"message": "Game restored"})
 
 
 @sessions_bp.route("/sessions/<int:session_id>/settlement", methods=["GET"])
@@ -177,7 +224,7 @@ def add_buyin(session_id, session_player_id):
     data = request.get_json()
     amount = data.get("amount")
 
-    if not amount or int(amount) <= 0:
+    if not amount or int(amount) == 0:
         return jsonify({"error": "Valid amount is required"}), 400
 
     buyin = Buyin(session_player_id=sp.id, amount=int(amount))
