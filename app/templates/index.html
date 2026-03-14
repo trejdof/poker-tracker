@@ -168,7 +168,6 @@
   <h1>♠ Poker Tracker</h1>
   <button class="active" onclick="showPage('players')">Players</button>
   <button onclick="showPage('sessions')">Games</button>
-  <button onclick="showPage('history')">History</button>
 </nav>
 
 <!-- PLAYERS PAGE -->
@@ -197,17 +196,19 @@
 
 <!-- SESSIONS PAGE -->
 <div id="page-sessions" class="page">
-  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
     <h2 style="margin-bottom:0;">Games</h2>
     <button class="btn btn-primary" onclick="openNewSession()">+ New Game</button>
   </div>
+  <!-- Filter tabs -->
+  <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;">
+    <button id="filter-all" class="btn btn-ghost" style="font-size:0.82rem; padding:6px 14px;" onclick="setFilter('all')">All</button>
+    <button id="filter-live" class="btn btn-ghost" style="font-size:0.82rem; padding:6px 14px;" onclick="setFilter('live')">Live</button>
+    <button id="filter-unsettled" class="btn btn-ghost" style="font-size:0.82rem; padding:6px 14px;" onclick="setFilter('unsettled')">Unsettled</button>
+    <button id="filter-closed" class="btn btn-ghost" style="font-size:0.82rem; padding:6px 14px;" onclick="setFilter('closed')">Closed</button>
+  </div>
   <div id="sessions-list"></div>
-</div>
-
-<!-- HISTORY PAGE -->
-<div id="page-history" class="page">
-  <h2 style="margin-bottom:20px;">History</h2>
-  <div id="history-list"></div>
+  <!-- Deleted games -->
   <div style="margin-top:24px;">
     <div onclick="toggleDeletedGames()" style="cursor:pointer; display:flex; align-items:center; gap:8px; color:#555; font-size:0.88rem; margin-bottom:12px;">
       <span id="deleted-toggle-icon">▶</span>
@@ -220,7 +221,7 @@
 <!-- HISTORY SETTLEMENT PAGE -->
 <div id="page-history-settlement" class="page">
   <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
-    <button class="btn btn-ghost" onclick="showPage('history')">← Back</button>
+    <button class="btn btn-ghost" onclick="showPage('sessions')">← Back</button>
     <h2 style="margin-bottom:0; flex:1;" id="history-settlement-title"></h2>
   </div>
   <div id="history-settlement-content"></div>
@@ -842,18 +843,54 @@
   function updateChipMismatch() {
     const players = currentSession.players;
     const totalBuyins = players.reduce((s, p) => s + p.total_buyin, 0);
-    const totalFinal = players.reduce((s, p) => {
-      const val = parseInt(document.getElementById(`final-${p.id}`)?.value) || 0;
-      return s + val;
-    }, 0);
+    const finalValues = players.map(p => ({
+      ...p,
+      final: parseInt(document.getElementById(`final-${p.id}`)?.value) || 0
+    }));
+    const totalFinal = finalValues.reduce((s, p) => s + p.final, 0);
     const mismatch = document.getElementById('chip-mismatch');
-    if (totalFinal > 0 && totalFinal !== totalBuyins) {
-      const diff = totalFinal - totalBuyins;
-      mismatch.style.display = 'block';
-      mismatch.innerHTML = `⚠️ Chip mismatch: entered <strong style="color:#e0e0e0">${totalFinal.toLocaleString()}</strong>, expected <strong style="color:#e0e0e0">${totalBuyins.toLocaleString()}</strong> (${diff > 0 ? '+' : ''}${diff.toLocaleString()} RSD)`;
-    } else {
+
+    if (totalFinal === 0 || totalFinal === totalBuyins) {
       mismatch.style.display = 'none';
+      return;
     }
+
+    const diff = totalFinal - totalBuyins;
+
+    if (diff > 0) {
+      // More chips than expected — harmless
+      mismatch.style.display = 'block';
+      mismatch.style.borderColor = '#c9a84c';
+      mismatch.style.color = '#c9a84c';
+      mismatch.style.background = '#1e1a0f';
+      mismatch.innerHTML = `⚠ ${diff.toLocaleString()} RSD extra chips counted — no adjustment needed, proceed as-is.`;
+      return;
+    }
+
+    // Missing chips — show who absorbs the loss
+    const missing = -diff;
+    const winners = finalValues.filter(p => p.final - p.total_buyin > 0);
+    const totalWinnings = winners.reduce((s, p) => s + (p.final - p.total_buyin), 0);
+
+    let absorptionHtml = '';
+    if (winners.length === 0) {
+      absorptionHtml = '<div style="margin-top:6px; color:#aaa; font-size:0.82rem;">No winners to absorb the difference.</div>';
+    } else {
+      absorptionHtml = '<div style="margin-top:8px; font-size:0.82rem; color:#aaa;">Winners absorb the missing chips:</div>' +
+        winners.map(p => {
+          const share = Math.round(missing * (p.final - p.total_buyin) / totalWinnings);
+          return `<div style="display:flex; justify-content:space-between; margin-top:4px;">
+            <span>${p.player_name}</span>
+            <span style="color:#e05c5c; font-weight:600;">-${share.toLocaleString()} RSD</span>
+          </div>`;
+        }).join('');
+    }
+
+    mismatch.style.display = 'block';
+    mismatch.style.borderColor = '#e05c5c';
+    mismatch.style.color = '#e05c5c';
+    mismatch.style.background = '#2a1f1f';
+    mismatch.innerHTML = `⚠ ${missing.toLocaleString()} RSD missing from the pot.${absorptionHtml}`;
   }
 
   async function submitEndGame() {
@@ -868,10 +905,27 @@
     const totalFinal = finalStacks.reduce((s, e) => s + e.final_chips, 0);
     const mismatch = totalFinal !== totalBuyins;
 
-    if (mismatch) {
-      const diff = totalFinal - totalBuyins;
-      const proceed = confirm(`Chip mismatch detected!\n\nEntered: ${totalFinal.toLocaleString()} RSD\nExpected: ${totalBuyins.toLocaleString()} RSD\nDifference: ${diff > 0 ? '+' : ''}${diff.toLocaleString()} RSD\n\nProceed anyway?`);
-      if (!proceed) return;
+    if (mismatch && totalFinal - totalBuyins < 0) {
+      // Apply proportional absorption to winners' final chips
+      const missing = totalBuyins - totalFinal;
+      const winners = finalStacks.filter(f => {
+        const p = players.find(p => p.id === f.session_player_id);
+        return f.final_chips - p.total_buyin > 0;
+      });
+      const totalWinnings = winners.reduce((s, f) => {
+        const p = players.find(p => p.id === f.session_player_id);
+        return s + (f.final_chips - p.total_buyin);
+      }, 0);
+
+      let remainder = missing;
+      winners.forEach((f, i) => {
+        const p = players.find(p => p.id === f.session_player_id);
+        const share = i === winners.length - 1
+          ? remainder
+          : Math.round(missing * (f.final_chips - p.total_buyin) / totalWinnings);
+        f.final_chips -= share;
+        remainder -= share;
+      });
     }
 
     const res = await fetch(`/api/sessions/${currentSession.id}/finalize`, {
@@ -927,34 +981,9 @@
     document.getElementById('qr-modal').classList.add('open');
   }
 
-  // --- History ---
+  // --- History (merged into sessions) ---
   async function loadHistory() {
-    const res = await fetch('/api/sessions');
-    const sessions = await res.json();
-    const closed = sessions.filter(s => s.status === 'closed');
-    const list = document.getElementById('history-list');
-
-    if (closed.length === 0) {
-      list.innerHTML = '<p class="empty">No completed games yet.</p>';
-      return;
-    }
-
-    list.innerHTML = closed.map(s => {
-      const typeLabel = s.type === 'cash' ? 'Cash Game' : 'Tournament';
-      const date = s.started_at
-        ? new Date(s.started_at + 'Z').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-        : 'Unknown date';
-      return `
-        <div class="card">
-          <div class="info" style="cursor:pointer;" onclick="openHistorySettlement(${s.id}, '${typeLabel} #${s.id}')">
-            <div class="name">${typeLabel} #${s.id}</div>
-            <div class="sub">${date}</div>
-          </div>
-          <span style="color:#888; font-size:0.85rem; cursor:pointer; margin-right:12px;" onclick="openHistorySettlement(${s.id}, '${typeLabel} #${s.id}')">View →</span>
-          <button class="btn btn-danger" style="padding:6px 12px; font-size:0.82rem;" onclick="deleteGame(${s.id})">Delete</button>
-        </div>
-      `;
-    }).join('');
+    await loadSessions();
   }
 
   let deletedGamesVisible = false;
@@ -998,7 +1027,7 @@
     const res = await fetch(`/api/sessions/${sessionId}/restore`, { method: 'POST' });
     if (res.ok) {
       showToast('Game restored');
-      loadHistory();
+      loadSessions();
       loadDeletedGames();
       loadPlayers();
     }
@@ -1009,7 +1038,7 @@
     const res = await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' });
     if (res.ok) {
       showToast('Game deleted');
-      loadHistory();
+      loadSessions();
       loadPlayers();
     }
   }
@@ -1129,34 +1158,65 @@
     }
   }
 
+  let activeFilter = 'all';
+  let allSessions = [];
+
+  function setFilter(filter) {
+    activeFilter = filter;
+    ['all','live','unsettled','closed'].forEach(f => {
+      const btn = document.getElementById(`filter-${f}`);
+      btn.classList.toggle('btn-primary', f === filter);
+      btn.classList.toggle('btn-ghost', f !== filter);
+    });
+    renderSessionsList();
+  }
+
   async function loadSessions() {
     const res = await fetch('/api/sessions');
-    const sessions = await res.json();
+    allSessions = await res.json();
+    setFilter(activeFilter);
+  }
+
+  function renderSessionsList() {
     const list = document.getElementById('sessions-list');
 
-    if (sessions.length === 0) {
-      list.innerHTML = '<p class="empty">No sessions yet. Start one above.</p>';
+    let filtered = allSessions;
+    if (activeFilter === 'live') filtered = allSessions.filter(s => s.status === 'open' || s.status === 'waiting');
+    if (activeFilter === 'unsettled') filtered = allSessions.filter(s => s.status === 'closed' && s.unconfirmed_count > 0);
+    if (activeFilter === 'closed') filtered = allSessions.filter(s => s.status === 'closed');
+
+    if (filtered.length === 0) {
+      list.innerHTML = '<p class="empty">No games found.</p>';
       return;
     }
 
-    list.innerHTML = sessions.map(s => {
+    list.innerHTML = filtered.map(s => {
+      const typeLabel = s.type === 'cash' ? 'Cash Game' : 'Tournament';
       const startedRaw = s.started_at ? (s.started_at.endsWith('Z') ? s.started_at : s.started_at + 'Z') : null;
       const dateStr = startedRaw
         ? new Date(startedRaw).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })
         : 'Not started';
-      const badge = s.status === 'open'
-        ? '<span style="color:#4caf82;font-size:0.8rem;font-weight:600;">● LIVE</span>'
-        : s.status === 'waiting'
-          ? '<span style="color:#c9a84c;font-size:0.8rem;font-weight:600;">● WAITING</span>'
-          : '<span style="color:#888;font-size:0.8rem;">CLOSED</span>';
-      const typeBadge = s.type === 'cash' ? 'Cash Game' : 'Tournament';
+
+      let badge = '';
+      if (s.status === 'open') badge = '<span style="color:#4caf82;font-size:0.8rem;font-weight:600;">● LIVE</span>';
+      else if (s.status === 'waiting') badge = '<span style="color:#c9a84c;font-size:0.8rem;font-weight:600;">● WAITING</span>';
+      else if (s.unconfirmed_count > 0) badge = `<span style="color:#e05c5c;font-size:0.8rem;font-weight:600;">⚠ ${s.unconfirmed_count} unsettled</span>`;
+      else badge = '<span style="color:#4caf82;font-size:0.8rem;">✓ Settled</span>';
+
+      const onclick = s.status === 'closed'
+        ? `openHistorySettlement(${s.id}, '${typeLabel} #${s.id}')`
+        : `openSession(${s.id})`;
+
       return `
-        <div class="card" style="cursor:pointer;" onclick="openSession(${s.id})">
+        <div class="card" style="cursor:pointer;" onclick="${onclick}">
           <div class="info">
-            <div class="name">${typeBadge} #${s.id}</div>
+            <div class="name">${typeLabel} #${s.id}</div>
             <div class="sub">${dateStr}</div>
           </div>
-          ${badge}
+          <div style="display:flex; align-items:center; gap:10px;">
+            ${badge}
+            ${s.status === 'closed' ? `<button class="btn btn-danger" style="padding:5px 10px; font-size:0.78rem;" onclick="event.stopPropagation(); deleteGame(${s.id})">Delete</button>` : ''}
+          </div>
         </div>
       `;
     }).join('');
@@ -1168,7 +1228,6 @@
     document.getElementById('page-' + name).classList.add('active');
     if (event && event.target) event.target.classList.add('active');
     if (name === 'sessions') loadSessions();
-    if (name === 'history') loadHistory();
     if (name === 'players') loadPlayers();
   }
 

@@ -14,7 +14,16 @@ sessions_bp = Blueprint("sessions", __name__)
 @sessions_bp.route("/sessions", methods=["GET"])
 def get_sessions():
     sessions = Session.query.filter_by(deleted=False).order_by(Session.id.desc()).all()
-    return jsonify([s.to_dict() for s in sessions])
+    result = []
+    for s in sessions:
+        d = s.to_dict()
+        if s.status == "closed":
+            unconfirmed = Transaction.query.filter_by(session_id=s.id, confirmed=False).count()
+            d["unconfirmed_count"] = unconfirmed
+        else:
+            d["unconfirmed_count"] = 0
+        result.append(d)
+    return jsonify(result)
 
 
 @sessions_bp.route("/sessions/deleted", methods=["GET"])
