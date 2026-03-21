@@ -1,0 +1,14 @@
+<div class="modal-overlay" id="cashout-modal">
+  <div class="modal">
+    <h3 id="cashout-title">Cash Out</h3>
+    <div style="font-size:0.85rem; color:#888; margin-bottom:14px;">Player removes chips from the table. This reduces their effective buy-in.</div>
+    <div class="form-group">
+      <label>Amount</label>
+      <input id="cashout-amount" type="number" min="100" step="100" placeholder="e.g. 500" />
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="submitCashOut()">Confirm</button>
+      <button class="btn btn-ghost" onclick="closeCashOutModal()">Cancel</button>
+    </div>
+  </div>
+</div>

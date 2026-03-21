@@ -1,0 +1,16 @@
+<div class="modal-overlay" id="qr-modal">
+  <div class="modal" style="text-align:center;">
+    <h3 id="qr-title">Pay to Player</h3>
+    <div class="form-group">
+      <label>Amount</label>
+      <input id="qr-amount" type="number" min="1" step="100" placeholder="e.g. 500" />
+    </div>
+    <div class="form-actions" style="justify-content:center;">
+      <button class="btn btn-primary" onclick="generateQR()">Generate QR</button>
+      <button class="btn btn-ghost" onclick="closeQRModal()">Cancel</button>
+    </div>
+    <div id="qr-image-wrap" style="margin-top:16px; display:none;">
+      <img id="qr-image" src="" style="width:220px;height:220px;border-radius:8px;" />
+    </div>
+  </div>
+</div>

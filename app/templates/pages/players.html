@@ -1,0 +1,61 @@
+<!-- PLAYERS PAGE -->
+<div id="page-players" class="page active">
+  <div class="players-layout">
+    <div class="players-left">
+      <div class="acc-section" id="acc-add-player">
+        <div class="acc-header" onclick="toggleAcc('add-player')">
+          <span class="acc-title">Add Player</span>
+          <span class="acc-icon">▶</span>
+        </div>
+        <div class="acc-body">
+          <div class="panel" style="margin-bottom:0;">
+            <div class="form-group">
+              <label>Name</label>
+              <input id="add-name" type="text" placeholder="e.g. Marko" />
+            </div>
+            <div class="form-group">
+              <label>Bank Account</label>
+              <input id="add-bank" type="text" placeholder="18-digit account number" />
+            </div>
+            <div class="form-actions">
+              <button class="btn btn-primary" style="width:100%;" onclick="addPlayer()">Add Player</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="acc-section" id="acc-games" style="margin-top:8px;">
+        <div class="acc-header" onclick="toggleAcc('games')">
+          <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:0;">
+            <span class="acc-title">Games</span>
+            <div id="games-preview" class="acc-preview"></div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <button class="btn btn-primary" style="padding:4px 10px; font-size:0.78rem;" onclick="event.stopPropagation(); openNewSession()">+ New</button>
+            <span class="acc-icon">▶</span>
+          </div>
+        </div>
+        <div class="acc-body">
+<div style="display:flex; gap:5px; flex-wrap:wrap; margin-bottom:10px;">
+            <button id="sf-all"       class="sf-btn sf-active" onclick="setSidebarFilter('all')">All</button>
+            <button id="sf-live"      class="sf-btn" onclick="setSidebarFilter('live')">Live</button>
+            <button id="sf-unsettled" class="sf-btn" onclick="setSidebarFilter('unsettled')">Unsettled</button>
+            <button id="sf-closed"    class="sf-btn" onclick="setSidebarFilter('closed')">Closed</button>
+          </div>
+          <div id="sidebar-sessions-list"></div>
+          <div style="margin-top:10px;">
+            <div onclick="toggleSidebarDeleted()" style="cursor:pointer; display:flex; align-items:center; gap:6px; color:#444; font-size:0.78rem; padding:4px 0;">
+              <span id="sidebar-deleted-icon">▶</span>
+              <span>Deleted games</span>
+            </div>
+            <div id="sidebar-deleted-list" style="display:none; margin-top:6px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="players-right">
+      <div id="players-list"></div>
+    </div>
+  </div>
+</div>

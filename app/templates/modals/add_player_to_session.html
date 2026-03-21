@@ -1,0 +1,19 @@
+<div class="modal-overlay" id="add-player-session-modal">
+  <div class="modal">
+    <h3>Add Player</h3>
+    <div class="form-group">
+      <label>Player</label>
+      <select id="session-player-select" style="width:100%;background:#12141e;border:1px solid #2a2d3a;border-radius:6px;padding:10px 12px;color:#e0e0e0;font-size:0.95rem;outline:none;">
+        <option value="">Select player...</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Initial Buy-in</label>
+      <input id="session-buyin-amount" type="number" min="100" step="100" placeholder="e.g. 1000" />
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="addPlayerToSession()">Add</button>
+      <button class="btn btn-ghost" onclick="closeAddPlayerToSession()">Cancel</button>
+    </div>
+  </div>
+</div>

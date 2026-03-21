@@ -1,0 +1,21 @@
+<!-- SESSIONS PAGE -->
+<div id="page-sessions" class="page">
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+    <h2 style="margin-bottom:0;">Games</h2>
+    <button class="btn btn-primary" onclick="openNewSession()">+ New Game</button>
+  </div>
+  <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;">
+    <button id="filter-all" class="btn btn-ghost" style="font-size:0.82rem; padding:6px 14px;" onclick="setFilter('all')">All</button>
+    <button id="filter-live" class="btn btn-ghost" style="font-size:0.82rem; padding:6px 14px;" onclick="setFilter('live')">Live</button>
+    <button id="filter-unsettled" class="btn btn-ghost" style="font-size:0.82rem; padding:6px 14px;" onclick="setFilter('unsettled')">Unsettled</button>
+    <button id="filter-closed" class="btn btn-ghost" style="font-size:0.82rem; padding:6px 14px;" onclick="setFilter('closed')">Closed</button>
+  </div>
+  <div id="sessions-list"></div>
+  <div style="margin-top:24px;">
+    <div onclick="toggleDeletedGames()" style="cursor:pointer; display:flex; align-items:center; gap:8px; color:#555; font-size:0.88rem; margin-bottom:12px;">
+      <span id="deleted-toggle-icon">▶</span>
+      <span>Deleted Games</span>
+    </div>
+    <div id="deleted-games-list" style="display:none;"></div>
+  </div>
+</div>

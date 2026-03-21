@@ -1,0 +1,158 @@
+/* Session Screen (semaphore/kiosk mode) */
+#page-session.active {
+  display: flex !important;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+#ses-inner {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+}
+#ses-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 24px;
+  background: #1a1d27;
+  border-bottom: 1px solid #2a2d3a;
+  flex-shrink: 0;
+}
+#ses-title-group { flex: 1; display: flex; align-items: center; gap: 12px; }
+.ses-title { font-size: 1.2rem; font-weight: 700; color: #c9a84c; }
+
+#ses-clock-bar {
+  display: flex;
+  flex-direction: column;
+  background: #12141e;
+  border-bottom: 2px solid #2a2d3a;
+  flex-shrink: 0;
+}
+#ses-clock-row1, #ses-clock-row2 {
+  display: flex;
+  align-items: stretch;
+}
+#ses-clock-row1 { border-bottom: 1px solid #2a2d3a; }
+#timer-panel, #ses-chips-panel, #ses-sysclock-panel {
+  flex: 1;
+  text-align: center;
+  padding: 18px 12px 14px;
+}
+#timer-panel, #ses-sysclock-panel { border-right: none; }
+#timer-panel { border-right: 1px solid #2a2d3a; }
+.ses-clock-label {
+  font-size: 0.65rem;
+  color: #888;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.ses-clock-big {
+  font-size: 4rem;
+  font-weight: 800;
+  font-family: 'Courier New', monospace;
+  color: #4caf82;
+  line-height: 1;
+}
+.ses-chips-val {
+  font-size: 3.2rem;
+  font-weight: 800;
+  color: #c9a84c;
+  font-family: 'Courier New', monospace;
+  line-height: 1;
+}
+.ses-sysclock-val {
+  font-size: 3.2rem;
+  font-weight: 800;
+  font-family: 'Courier New', monospace;
+  color: #e0e0e0;
+  line-height: 1;
+}
+.ses-clock-hint { font-size: 0.75rem; margin-top: 6px; min-height: 16px; }
+
+#ses-table-wrap { flex: 1; overflow-y: auto; }
+#ses-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+#ses-table thead th {
+  background: #1a1d27;
+  color: #888;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  padding: 10px 20px;
+  text-align: left;
+  border-bottom: 1px solid #2a2d3a;
+}
+#ses-table th:first-child { width: 56px; text-align: center; }
+#ses-table th:nth-child(3) { width: 160px; text-align: right; }
+#ses-table th:last-child { width: 230px; }
+#ses-table tbody tr { border-bottom: 1px solid #1a1d2a; }
+#ses-table tbody td { padding: 16px 20px; vertical-align: middle; }
+#ses-table tbody td:first-child { text-align: center; color: #777; font-weight: 600; font-size: 1rem; }
+.ses-player-name { font-weight: 700; font-size: 1.3rem; color: #fff; }
+.ses-buyin-sub { font-size: 0.8rem; color: #999; margin-top: 3px; }
+.ses-amount { text-align: right; font-size: 1.5rem; font-weight: 800; }
+.ses-actions-cell { display: flex; gap: 8px; justify-content: flex-end; }
+.ses-btn-rebuy {
+  background: transparent; border: 1px solid #c9a84c; color: #c9a84c;
+  border-radius: 6px; padding: 9px 18px; font-size: 0.88rem; font-weight: 600; cursor: pointer;
+}
+.ses-btn-cashout {
+  background: transparent; border: 1px solid #555; color: #888;
+  border-radius: 6px; padding: 9px 14px; font-size: 0.88rem; font-weight: 600; cursor: pointer;
+}
+.ses-btn-remove {
+  background: transparent; border: 1px solid #e05c5c; color: #e05c5c;
+  border-radius: 6px; padding: 9px 16px; font-size: 0.88rem; font-weight: 600; cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  #ses-header {
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    gap: 6px;
+  }
+  #ses-title-group {
+    order: -1;
+    width: 100%;
+  }
+  #ses-header .btn {
+    padding: 6px 10px;
+    font-size: 0.78rem;
+  }
+
+  #timer-panel, #ses-chips-panel, #ses-sysclock-panel {
+    padding: 10px 6px 8px;
+  }
+  .ses-clock-label { margin-bottom: 4px; }
+  .ses-clock-big   { font-size: 2.2rem; }
+  .ses-chips-val   { font-size: 1.8rem; }
+  .ses-sysclock-val{ font-size: 1.8rem; }
+  .ses-clock-hint  { min-height: 12px; margin-top: 3px; }
+
+  #ses-table { table-layout: auto; }
+  #ses-table thead { display: none; }
+  #ses-table tbody tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 10px 14px;
+    gap: 4px 8px;
+    border-bottom: 1px solid #1a1d2a;
+  }
+  #ses-table tbody td { display: block; padding: 0; }
+  #ses-table tbody td:first-child { display: none; }
+  #ses-table tbody td:nth-child(2) { flex: 1; min-width: 0; }
+  #ses-table tbody td:nth-child(3) { margin-left: auto; }
+  .ses-amount { font-size: 1.2rem; }
+  #ses-table tbody td:last-child { width: 100%; margin-top: 6px; }
+  .ses-actions-cell { justify-content: stretch; }
+  .ses-btn-rebuy, .ses-btn-cashout, .ses-btn-remove { flex: 1; text-align: center; padding: 8px 6px; font-size: 0.82rem; }
+  .ses-player-name { font-size: 1.05rem; }
+}

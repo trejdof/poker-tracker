@@ -1,0 +1,14 @@
+<div class="modal-overlay" id="end-game-modal">
+  <div class="modal" style="max-width:500px; max-height:90vh; overflow-y:auto;">
+    <h3>End Game — Final Chips</h3>
+    <div style="font-size:0.85rem; color:#888; margin-bottom:16px;">
+      Total buy-ins: <strong style="color:#c9a84c;" id="end-game-total-buyins"></strong>
+    </div>
+    <div id="final-stacks-form"></div>
+    <div id="chip-mismatch" style="display:none; background:#2a1f1f; border:1px solid #e05c5c; border-radius:8px; padding:10px 14px; font-size:0.85rem; color:#e05c5c; margin-bottom:14px;"></div>
+    <div class="form-actions" style="margin-top:8px;">
+      <button class="btn btn-primary" onclick="submitEndGame()">Calculate Settlement</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('end-game-modal').classList.remove('open')">Cancel</button>
+    </div>
+  </div>
+</div>

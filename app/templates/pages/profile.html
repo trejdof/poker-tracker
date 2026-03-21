@@ -1,0 +1,34 @@
+<!-- PLAYER PROFILE PAGE -->
+<div id="page-player-profile" class="page">
+  <div id="profile-inner">
+    <div id="profile-header">
+      <div id="profile-avatar"></div>
+      <div id="profile-info">
+        <div id="profile-name"></div>
+        <div id="profile-subline"></div>
+      </div>
+      <div style="text-align:right;">
+        <div class="prof-label">All-Time</div>
+        <div id="profile-total-val"></div>
+      </div>
+    </div>
+
+    <div class="prof-stats-grid" id="profile-stats"></div>
+
+    <div class="prof-section">
+      <div class="prof-filters" id="profile-filters">
+        <button class="prof-filter" onclick="setProfileFilter('7', this)">7D</button>
+        <button class="prof-filter" onclick="setProfileFilter('30', this)">30D</button>
+        <button class="prof-filter" onclick="setProfileFilter('90', this)">3M</button>
+        <button class="prof-filter" onclick="setProfileFilter('180', this)">6M</button>
+        <button class="prof-filter active" onclick="setProfileFilter('all', this)">All</button>
+      </div>
+      <svg id="profile-chart" viewBox="0 0 800 200" preserveAspectRatio="none" style="width:100%;height:180px;display:block;"></svg>
+    </div>
+
+    <div class="prof-section">
+      <div class="prof-section-title">Game History</div>
+      <div id="profile-history"></div>
+    </div>
+  </div>
+</div>

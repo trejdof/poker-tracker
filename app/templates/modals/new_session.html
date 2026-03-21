@@ -1,0 +1,20 @@
+<div class="modal-overlay" id="new-session-modal">
+  <div class="modal">
+    <h3>New Session</h3>
+    <div class="form-group">
+      <label>Game Type</label>
+      <div style="display:flex; gap:10px; margin-top:4px;">
+        <button class="btn btn-ghost" id="type-cash" onclick="selectType('cash')" style="flex:1;">Cash Game</button>
+        <button class="btn btn-ghost" id="type-tournament" onclick="selectType('tournament')" style="flex:1;">Tournament</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Default Buy-in</label>
+      <input id="new-session-buyin" type="number" min="0" step="100" placeholder="e.g. 1000" />
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="createSession()">Start Session</button>
+      <button class="btn btn-ghost" onclick="closeNewSession()">Cancel</button>
+    </div>
+  </div>
+</div>

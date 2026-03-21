@@ -46,8 +46,18 @@ def create_app():
         return redirect(url_for("login"))
 
     @app.route("/")
-    def index():
+    @app.route("/<path:path>")
+    def index(path=None):
         return render_template("index.html")
+
+    @app.route("/backup")
+    def backup():
+        import os
+        from flask import send_file
+        from datetime import datetime
+        db_path = os.path.join(app.instance_path, "poker.db")
+        filename = f"poker-backup-{datetime.now().strftime('%Y%m%d-%H%M%S')}.db"
+        return send_file(db_path, as_attachment=True, download_name=filename)
 
     with app.app_context():
         from .models import player, session, session_player, buyin, transaction
