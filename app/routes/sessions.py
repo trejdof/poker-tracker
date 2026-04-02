@@ -267,7 +267,8 @@ def add_player(session_id):
     if existing:
         return jsonify({"error": "Player already in session"}), 409
 
-    sp = SessionPlayer(session_id=session_id, player_id=player_id)
+    next_pos = db.session.query(db.func.count(SessionPlayer.id)).filter_by(session_id=session_id).scalar() or 0
+    sp = SessionPlayer(session_id=session_id, player_id=player_id, position=next_pos)
     db.session.add(sp)
     db.session.flush()
 

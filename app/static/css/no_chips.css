@@ -7,6 +7,13 @@ html.nc-active body {
   overflow: hidden !important;
 }
 
+html.nc-active .page.active {
+  flex: 1 !important;
+  min-height: 0 !important;
+  overflow-y: hidden !important;
+  padding: 0 !important;
+}
+
 #page-no-chips-game {
   padding: 0;
   overflow: hidden;
@@ -26,6 +33,7 @@ html.nc-active body {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
 }
 
 /* Join screen */
@@ -79,25 +87,40 @@ html.nc-active body {
   text-align: right;
 }
 
-/* Pot area */
-.nc-pot-area {
-  text-align: center;
-  padding: 10px 16px 4px;
+/* Pot + Stack combined row */
+.nc-info-row {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px 4px;
   flex-shrink: 0;
+  gap: 0;
 }
 
-.nc-pot-label {
-  font-size: 0.7rem;
+.nc-info-cell {
+  flex: 1;
+  text-align: center;
+}
+
+.nc-info-label {
+  font-size: 0.65rem;
   color: #555;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
+.nc-info-divider {
+  width: 1px;
+  height: 40px;
+  background: #2a2d3a;
+  flex-shrink: 0;
+  margin: 0 8px;
+}
+
 .nc-pot-value {
-  font-size: 3rem;
+  font-size: 2.2rem;
   font-weight: 800;
   color: #c9a84c;
-  line-height: 1.1;
+  line-height: 1.15;
 }
 
 /* Role banner — prominent full-width strip */
@@ -160,13 +183,6 @@ html.nc-active body {
 .nc-badge-sb  { background: #0a2018; color: #4caf82; border: 1px solid #4caf82; }
 .nc-badge-bb  { background: #0d1a2e; color: #7aa8f0; border: 1px solid #7aa8f0; }
 
-/* Stack area */
-.nc-stack-area {
-  text-align: center;
-  padding: 4px 16px 4px;
-  flex-shrink: 0;
-}
-
 .nc-stack-value {
   font-size: 1.5rem;
   font-weight: 700;
@@ -183,7 +199,6 @@ html.nc-active body {
   overflow-x: auto;
   gap: 6px;
   align-items: center;
-  justify-content: center;
   padding: 2px 16px 4px;
   min-height: 24px;
   scrollbar-width: none;
@@ -206,21 +221,17 @@ html.nc-active body {
 
 /* Numpad */
 .nc-numpad {
-  flex: 1;
-  min-height: 0;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  padding: 8px 12px 10px;
+  padding: 8px 12px 12px;
   gap: 7px;
 }
 
 .nc-preset-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(3, 1fr);
   gap: 7px;
-  flex: 1;
-  min-height: 0;
 }
 
 .nc-preset-btn {
@@ -233,8 +244,7 @@ html.nc-active body {
   cursor: pointer;
   transition: all 0.12s;
   width: 100%;
-  height: 100%;
-  min-height: 52px;
+  height: 58px;
 }
 
 .nc-preset-btn:active { transform: scale(0.95); }
@@ -286,6 +296,19 @@ html.nc-active body {
 .nc-custom-display:focus { border-color: #c9a84c; }
 
 /* Buttons at bottom of numpad */
+.nc-call-btn {
+  width: 100%;
+  padding: 14px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: #1a3a2a;
+  border: 2px solid #4caf82;
+  color: #4caf82;
+}
+.nc-call-btn:active { background: #224d36; }
+
 .nc-place-bet-btn {
   width: 100%;
   padding: 14px;
@@ -361,6 +384,45 @@ html.nc-active body {
   padding: 16px;
   font-size: 1.1rem;
   border-radius: 10px;
+}
+
+/* Join screen */
+.nc-join-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #12141e;
+  border: 1px solid #2a2d3a;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+.nc-join-name {
+  flex: 1;
+  font-size: 0.95rem;
+  color: #e0e0e0;
+}
+.nc-reorder-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.nc-reorder-btn {
+  background: #1e2130;
+  border: 1px solid #2a2d3a;
+  border-radius: 4px;
+  color: #aaa;
+  font-size: 0.75rem;
+  padding: 2px 7px;
+  cursor: pointer;
+  line-height: 1.4;
+}
+.nc-reorder-btn:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+.nc-reorder-btn:not(:disabled):active {
+  background: #2a2d3a;
 }
 
 /* Winner modal */

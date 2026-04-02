@@ -27,6 +27,7 @@ async function openSession(id, skipTimer = false, pushHistory = true) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
   document.getElementById('page-session').classList.add('active');
+  document.body.classList.add('game-active');
   startSystemClock();
   if (pushHistory) history.pushState({ type: 'game', id }, '', `/game/${id}`);
 }

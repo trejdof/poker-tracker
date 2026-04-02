@@ -11,6 +11,7 @@ function backToSessions() {
   stopSystemClock();
   currentSession = null;
   if (typeof ncCleanup === 'function') ncCleanup();
+  document.body.classList.remove('game-active');
   showHome();
 }
 

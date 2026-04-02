@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 from ..database import db
 from ..models.player import Player
+from ..models.session import Session
 from ..models.transaction import Transaction
 
 players_bp = Blueprint("players", __name__)
@@ -10,15 +11,18 @@ players_bp = Blueprint("players", __name__)
 def get_players():
     players = Player.query.all()
     result = []
+    deleted_session_ids = db.session.query(Session.id).filter(Session.deleted == True).subquery()
     for p in players:
         d = p.to_dict()
         pending_debt = db.session.query(db.func.sum(Transaction.amount)).filter(
             Transaction.from_player_id == p.id,
-            Transaction.confirmed == False
+            Transaction.confirmed == False,
+            Transaction.session_id.notin_(deleted_session_ids)
         ).scalar() or 0
         pending_receivable = db.session.query(db.func.sum(Transaction.amount)).filter(
             Transaction.to_player_id == p.id,
-            Transaction.confirmed == False
+            Transaction.confirmed == False,
+            Transaction.session_id.notin_(deleted_session_ids)
         ).scalar() or 0
         d["pending_debt"] = pending_debt
         d["pending_receivable"] = pending_receivable
@@ -106,13 +110,16 @@ def get_player_profile(player_name):
 
     games.sort(key=lambda x: x["ended_at"] or "")
 
+    deleted_session_ids = db.session.query(Session.id).filter(Session.deleted == True).subquery()
     pending_debt = db.session.query(db.func.sum(Transaction.amount)).filter(
         Transaction.from_player_id == player.id,
-        Transaction.confirmed == False
+        Transaction.confirmed == False,
+        Transaction.session_id.notin_(deleted_session_ids)
     ).scalar() or 0
     pending_receivable = db.session.query(db.func.sum(Transaction.amount)).filter(
         Transaction.to_player_id == player.id,
-        Transaction.confirmed == False
+        Transaction.confirmed == False,
+        Transaction.session_id.notin_(deleted_session_ids)
     ).scalar() or 0
 
     return jsonify({

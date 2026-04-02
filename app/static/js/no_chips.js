@@ -10,6 +10,7 @@ let ncCustomVal = 10;
 async function openNoChipsGame(sessionId) {
   ncCleanup();
   document.documentElement.classList.add('nc-active');
+  document.body.classList.add('game-active');
   ncSessionId = sessionId;
   ncMySpId = ncGetStoredSeat(sessionId);
 
@@ -83,12 +84,42 @@ function ncRenderJoinList() {
     list.innerHTML = '<p style="color:#888; text-align:center; padding:20px 0;">No players yet — add players below.</p>';
     return;
   }
-  list.innerHTML = ncState.players.map(p => `
-    <div class="nc-join-card" onclick="ncJoinAs(${p.session_player_id}, '${p.player_name}')">
+  const canReorder = ncState.hand_number === 0;
+  list.innerHTML = ncState.players.map((p, i) => `
+    <div class="nc-join-card">
+      ${canReorder ? `<div class="nc-reorder-btns">
+        <button class="nc-reorder-btn" onclick="ncMovePlayer(${i}, -1)" ${i === 0 ? 'disabled' : ''}>↑</button>
+        <button class="nc-reorder-btn" onclick="ncMovePlayer(${i}, 1)" ${i === ncState.players.length - 1 ? 'disabled' : ''}>↓</button>
+      </div>` : ''}
       <span class="nc-join-name">${p.player_name}</span>
-      <span class="btn btn-ghost" style="font-size:0.82rem; padding:6px 14px;">Join</span>
+      <span class="btn btn-ghost" style="font-size:0.82rem; padding:6px 14px;" onclick="ncJoinAs(${p.session_player_id}, '${p.player_name}')">Join</span>
     </div>
   `).join('');
+}
+
+async function ncMovePlayer(index, direction) {
+  const players = ncState.players;
+  const newIndex = index + direction;
+  if (newIndex < 0 || newIndex >= players.length) return;
+
+  // Swap in local array
+  [players[index], players[newIndex]] = [players[newIndex], players[index]];
+
+  // Send new order to server
+  const res = await fetch(`/api/sessions/${ncSessionId}/reorder-players`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_player_ids: players.map(p => p.session_player_id) })
+  });
+
+  if (res.ok) {
+    ncRenderJoinList();
+  } else {
+    // Revert local swap on error
+    [players[index], players[newIndex]] = [players[newIndex], players[index]];
+    const err = await res.json();
+    showToast(err.error);
+  }
 }
 
 async function ncLoadAddPlayerDropdown() {
@@ -201,8 +232,26 @@ function ncRenderGameScreen() {
       const display = b.amount.toLocaleString() + (label ? ` (${label})` : '');
       return `<span class="nc-bet-pill">${display}</span>`;
     }).join('<span class="nc-bet-sep">·</span>');
+    betsRow.scrollLeft = betsRow.scrollWidth;
   } else {
     betsRow.innerHTML = '';
+  }
+
+  // Call button — show when player hasn't matched the highest bet this hand
+  const callBtn = document.getElementById('nc-call-btn');
+  const callAmountEl = document.getElementById('nc-call-amount');
+  if (callBtn) {
+    let callAmount = 0;
+    if (isOpen) {
+      const playerTotals = ncState.players.map(p =>
+        p.current_hand_bets.filter(b => b.amount < 0).reduce((s, b) => s + Math.abs(b.amount), 0)
+      );
+      const maxBet = Math.max(...playerTotals, 0);
+      const myBet = (me.current_hand_bets || []).filter(b => b.amount < 0).reduce((s, b) => s + Math.abs(b.amount), 0);
+      callAmount = Math.max(0, maxBet - myBet);
+    }
+    callBtn.style.display = (isOpen && callAmount > 0) ? '' : 'none';
+    if (callAmountEl) callAmountEl.textContent = callAmount;
   }
 
   // END HAND button (button holder only, hand open) — shown at bottom of numpad
@@ -231,6 +280,11 @@ function ncRenderWaiting(hand) {
 
   const canStart = nextBtnHolder === ncMySpId && (ncState.status === 'open' || ncState.status === 'waiting');
   startBtn.style.display = canStart ? '' : 'none';
+
+  const finishBtn = document.getElementById('nc-finish-game-btn');
+  // Only show Finish Game between hands (not before any hand has been played) and to button holder
+  const handsPlayed = ncState.hand_number > 0;
+  finishBtn.style.display = (canStart && handsPlayed) ? '' : 'none';
 
   if (canStart) {
     waitingText.style.display = 'none';
@@ -343,10 +397,33 @@ async function ncPlaceBet() {
 
 async function ncRevertBet() {
   if (!ncState || !ncState.current_hand || ncState.current_hand.status !== 'open') return;
+  if (!confirm('Revert your last bet?')) return;
   const res = await fetch(`/api/sessions/${ncSessionId}/hands/${ncState.current_hand.id}/revert`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ session_player_id: ncMySpId })
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    showToast(err.error);
+  }
+}
+
+async function ncCall() {
+  if (!ncState || !ncState.current_hand || ncState.current_hand.status !== 'open') return;
+  const me = ncState.players.find(p => p.session_player_id === ncMySpId);
+  if (!me) return;
+  const playerTotals = ncState.players.map(p =>
+    p.current_hand_bets.filter(b => b.amount < 0).reduce((s, b) => s + Math.abs(b.amount), 0)
+  );
+  const maxBet = Math.max(...playerTotals, 0);
+  const myBet = (me.current_hand_bets || []).filter(b => b.amount < 0).reduce((s, b) => s + Math.abs(b.amount), 0);
+  const callAmount = maxBet - myBet;
+  if (callAmount <= 0) return;
+  const res = await fetch(`/api/sessions/${ncSessionId}/hands/${ncState.current_hand.id}/bet`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_player_id: ncMySpId, amount: callAmount })
   });
   if (!res.ok) {
     const err = await res.json();
@@ -396,6 +473,20 @@ function ncCloseWinnerModal() {
   document.getElementById('nc-winner-modal').classList.remove('open');
 }
 
+async function ncFinishGame() {
+  if (!confirm('Finish the game? This will calculate settlements and show payment QR codes.')) return;
+  const res = await fetch(`/api/sessions/${ncSessionId}/finalize-no-chips`, { method: 'POST' });
+  if (!res.ok) {
+    const err = await res.json();
+    showToast(err.error);
+    return;
+  }
+  const data = await res.json();
+  ncCleanup();
+  document.body.classList.remove('game-active');
+  await openHistorySettlement(data.session_id, `No Chips Game #${data.session_id}`);
+}
+
 async function ncSubmitEndHand() {
   const checked = [...document.querySelectorAll('.nc-winner-cb:checked')];
   if (checked.length === 0) { showToast('Select at least one winner'); return; }
@@ -415,3 +506,11 @@ async function ncSubmitEndHand() {
     showToast(err.error);
   }
 }
+
+// Clear custom input on focus (setTimeout defers past browser's own focus handling)
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.getElementById('nc-custom-val');
+  if (input) {
+    input.addEventListener('focus', () => setTimeout(() => { input.value = ''; }, 10));
+  }
+});

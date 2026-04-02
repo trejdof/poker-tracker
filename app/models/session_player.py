@@ -7,6 +7,7 @@ class SessionPlayer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     session_id = db.Column(db.Integer, db.ForeignKey("sessions.id"), nullable=False)
     player_id = db.Column(db.Integer, db.ForeignKey("players.id"), nullable=False)
+    position = db.Column(db.Integer, nullable=False, default=0)
 
     buyins = db.relationship("Buyin", backref="session_player", lazy=True, cascade="all, delete-orphan")
 

@@ -26,9 +26,10 @@ def migrate():
         ("sessions", "started_at",    "DATETIME"),
         ("sessions", "ended_at",      "DATETIME"),
         ("sessions", "deleted",       "BOOLEAN NOT NULL DEFAULT 0"),
-        ("sessions", "small_blind",   "INTEGER NOT NULL DEFAULT 5"),
-        ("sessions", "big_blind",     "INTEGER NOT NULL DEFAULT 10"),
-        ("transactions", "confirmed", "BOOLEAN NOT NULL DEFAULT 0"),
+        ("sessions", "small_blind",        "INTEGER NOT NULL DEFAULT 5"),
+        ("sessions", "big_blind",          "INTEGER NOT NULL DEFAULT 10"),
+        ("session_players", "position",    "INTEGER NOT NULL DEFAULT 0"),
+        ("transactions", "confirmed",      "BOOLEAN NOT NULL DEFAULT 0"),
     ]
 
     # Create new tables if they don't exist

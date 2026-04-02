@@ -6,7 +6,7 @@
       <h2 style="margin:0;">Join Game</h2>
       <button class="btn btn-ghost" style="font-size:0.82rem;" onclick="backToSessions()">← Back</button>
     </div>
-    <p style="color:#888; font-size:0.88rem; margin-bottom:16px;">Select your seat to play</p>
+    <p style="color:#888; font-size:0.88rem; margin-bottom:16px;">Select your seat · drag arrows to set table order</p>
     <div id="nc-join-list"></div>
     <div id="nc-add-player-section" style="margin-top:20px;">
       <div style="font-size:0.78rem; color:#555; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:10px;">Add players to game</div>
@@ -29,20 +29,24 @@
       <div id="nc-hand-number" class="nc-hand-number"></div>
     </div>
 
-    <!-- Pot -->
-    <div class="nc-pot-area">
-      <div class="nc-pot-label">POT</div>
-      <div id="nc-pot-value" class="nc-pot-value">0</div>
+    <!-- Pot + Stack row -->
+    <div class="nc-info-row">
+      <div class="nc-info-cell">
+        <div class="nc-info-label">POT</div>
+        <div id="nc-pot-value" class="nc-pot-value">0</div>
+      </div>
+      <div class="nc-info-divider"></div>
+      <div class="nc-info-cell">
+        <div class="nc-info-label">STACK</div>
+        <div id="nc-stack-value" class="nc-stack-value">0</div>
+      </div>
     </div>
+
+    <!-- Bets row -->
+    <div id="nc-bets-row" class="nc-bets-row"></div>
 
     <!-- Role banner -->
     <div id="nc-role-badge" class="nc-role-badge"></div>
-
-    <!-- Stack + bets -->
-    <div class="nc-stack-area">
-      <div id="nc-stack-value" class="nc-stack-value">0</div>
-      <div id="nc-bets-row" class="nc-bets-row"></div>
-    </div>
 
     <!-- Active hand: numpad -->
     <div id="nc-numpad" class="nc-numpad" style="display:none;">
@@ -59,9 +63,10 @@
       </div>
       <div class="nc-custom-row">
         <button class="nc-custom-step" onclick="ncCustomStep(-10)">−</button>
-        <input type="number" id="nc-custom-val" class="nc-custom-display" value="10" min="10" step="10" inputmode="numeric" oninput="ncOnCustomInput()">
+        <input type="text" id="nc-custom-val" class="nc-custom-display" value="10" inputmode="numeric" pattern="[0-9]*" oninput="ncOnCustomInput()">
         <button class="nc-custom-step" onclick="ncCustomStep(10)">+</button>
       </div>
+      <button id="nc-call-btn" class="btn nc-call-btn" onclick="ncCall()" style="display:none;">CALL — <span id="nc-call-amount">0</span></button>
       <button class="btn btn-primary nc-place-bet-btn" onclick="ncPlaceBet()">PLACE BET — <span id="nc-bet-preview">10</span></button>
       <button class="btn btn-ghost nc-revert-btn" onclick="ncRevertBet()">↩ Revert last bet</button>
       <button id="nc-end-hand-btn" class="btn btn-danger nc-end-hand-btn" onclick="ncConfirmEndHand()" style="display:none;">END HAND</button>
@@ -72,6 +77,7 @@
       <div id="nc-positions-list" class="nc-positions-list"></div>
       <div id="nc-waiting-text" class="nc-waiting-text">WAITING</div>
       <button id="nc-start-hand-btn" class="btn btn-primary nc-start-hand-btn" onclick="ncStartHand()" style="display:none;">START HAND</button>
+      <button id="nc-finish-game-btn" class="btn btn-danger nc-start-hand-btn" onclick="ncFinishGame()" style="display:none; margin-top:8px;">FINISH GAME</button>
     </div>
 
   </div>

@@ -8,12 +8,14 @@ from ..models.session_player import SessionPlayer
 from ..models.player import Player
 from ..models.hand import Hand
 from ..models.hand_bet import HandBet
+from ..models.transaction import Transaction
+from ..utils.settlement import calculate_settlement
 
 no_chips_bp = Blueprint("no_chips", __name__)
 
 
 def _player_order(session_id):
-    return SessionPlayer.query.filter_by(session_id=session_id).order_by(SessionPlayer.id).all()
+    return SessionPlayer.query.filter_by(session_id=session_id).order_by(SessionPlayer.position, SessionPlayer.id).all()
 
 
 def _positions(sp_ids, btn_idx):
@@ -120,6 +122,29 @@ def get_game_state(session_id):
     }
 
 
+@no_chips_bp.route("/sessions/<int:session_id>/reorder-players", methods=["POST"])
+def reorder_players(session_id):
+    session = db.get_or_404(Session, session_id)
+    if session.type != "no_chips":
+        return jsonify({"error": "Not a no-chips session"}), 400
+    # Only allow reorder before any hand has been started
+    if Hand.query.filter_by(session_id=session_id).count() > 0:
+        return jsonify({"error": "Cannot reorder after hands have started"}), 400
+
+    data = request.get_json()
+    ordered_ids = data.get("session_player_ids", [])
+
+    players = {sp.id: sp for sp in SessionPlayer.query.filter_by(session_id=session_id).all()}
+    if set(ordered_ids) != set(players.keys()):
+        return jsonify({"error": "Must include all session player IDs"}), 400
+
+    for pos, sp_id in enumerate(ordered_ids):
+        players[sp_id].position = pos
+
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
 @no_chips_bp.route("/sessions/<int:session_id>/no-chips-state", methods=["GET"])
 def get_state(session_id):
     state = get_game_state(session_id)
@@ -179,6 +204,49 @@ def start_no_chips_session(session_id):
     session.started_at = datetime.now(timezone.utc)
     db.session.commit()
     return jsonify(session.to_dict())
+
+
+@no_chips_bp.route("/sessions/<int:session_id>/finalize-no-chips", methods=["POST"])
+def finalize_no_chips(session_id):
+    session = db.get_or_404(Session, session_id)
+    if session.type != "no_chips":
+        return jsonify({"error": "Not a no-chips session"}), 400
+    if session.status != "open":
+        return jsonify({"error": "Session is not open"}), 400
+
+    open_hand = Hand.query.filter_by(session_id=session_id, status="open").first()
+    if open_hand:
+        return jsonify({"error": "End the current hand before finishing the game"}), 400
+
+    players = _player_order(session_id)
+
+    net_balances = {}
+    for sp in players:
+        all_bets = (HandBet.query
+                    .join(Hand)
+                    .filter(Hand.session_id == session_id, HandBet.session_player_id == sp.id)
+                    .all())
+        net_balances[sp.player_id] = sum(b.amount for b in all_bets)
+
+    raw_transactions = calculate_settlement(net_balances)
+    saved = []
+    for from_id, to_id, amount in raw_transactions:
+        t = Transaction(session_id=session_id, from_player_id=from_id, to_player_id=to_id, amount=amount, confirmed=False)
+        db.session.add(t)
+        saved.append(t)
+
+    session.status = "closed"
+    session.ended_at = datetime.now(timezone.utc)
+    db.session.commit()
+
+    return jsonify({
+        "session_id": session_id,
+        "transactions": [t.to_dict() for t in saved],
+        "net_balances": [
+            {"player_id": pid, "player_name": db.session.get(Player, pid).name, "net": net}
+            for pid, net in net_balances.items()
+        ]
+    })
 
 
 @no_chips_bp.route("/sessions/<int:session_id>/hands", methods=["POST"])

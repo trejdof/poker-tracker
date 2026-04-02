@@ -30,7 +30,7 @@ def create_app():
         if not flask_session.get("authenticated"):
             if request.path.startswith("/api/"):
                 return jsonify({"error": "Unauthorized"}), 401
-            return redirect(url_for("login"))
+            return redirect(url_for("login", next=request.path))
 
     @app.route("/login", methods=["GET", "POST"])
     def login():
@@ -38,7 +38,8 @@ def create_app():
         if request.method == "POST":
             if request.form.get("password") == app.config["APP_PASSWORD"]:
                 flask_session["authenticated"] = True
-                return redirect(url_for("index"))
+                next_path = request.args.get("next", "/")
+                return redirect(next_path)
             error = "Wrong password"
         return render_template("login.html", error=error)
 
