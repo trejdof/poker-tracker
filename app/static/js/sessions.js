@@ -7,11 +7,13 @@ let allSidebarSessions = [];
 
 function openNewSession() {
   selectedType = null;
-  document.getElementById('type-cash').classList.remove('btn-primary');
-  document.getElementById('type-cash').classList.add('btn-ghost');
-  document.getElementById('type-tournament').classList.remove('btn-primary');
-  document.getElementById('type-tournament').classList.add('btn-ghost');
+  ['cash', 'tournament', 'no_chips'].forEach(t => {
+    document.getElementById('type-' + t).classList.remove('btn-primary');
+    document.getElementById('type-' + t).classList.add('btn-ghost');
+  });
   document.getElementById('new-session-buyin').value = '';
+  document.getElementById('new-session-sb').value = '5';
+  document.getElementById('new-session-bb').value = '10';
   document.getElementById('new-session-modal').classList.add('open');
 }
 
@@ -21,19 +23,27 @@ function closeNewSession() {
 
 function selectType(type) {
   selectedType = type;
-  document.getElementById('type-cash').classList.toggle('btn-primary', type === 'cash');
-  document.getElementById('type-cash').classList.toggle('btn-ghost', type !== 'cash');
-  document.getElementById('type-tournament').classList.toggle('btn-primary', type === 'tournament');
-  document.getElementById('type-tournament').classList.toggle('btn-ghost', type !== 'tournament');
+  ['cash', 'tournament', 'no_chips'].forEach(t => {
+    document.getElementById('type-' + t).classList.toggle('btn-primary', t === type);
+    document.getElementById('type-' + t).classList.toggle('btn-ghost', t !== type);
+  });
+  document.getElementById('buyin-field').style.display = type === 'no_chips' ? 'none' : '';
+  document.getElementById('blinds-fields').style.display = type === 'no_chips' ? '' : 'none';
 }
 
 async function createSession() {
   if (!selectedType) { showToast('Select a game type'); return; }
-  const default_buyin = parseInt(document.getElementById('new-session-buyin').value) || 0;
+  const body = { type: selectedType };
+  if (selectedType === 'no_chips') {
+    body.small_blind = parseInt(document.getElementById('new-session-sb').value) || 5;
+    body.big_blind = parseInt(document.getElementById('new-session-bb').value) || 10;
+  } else {
+    body.default_buyin = parseInt(document.getElementById('new-session-buyin').value) || 0;
+  }
   const res = await fetch('/api/sessions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type: selectedType, default_buyin })
+    body: JSON.stringify(body)
   });
   if (res.ok) {
     const session = await res.json();
@@ -79,7 +89,7 @@ function renderSidebarList() {
 }
 
 function renderSidebarSession(s) {
-  const typeLabel = s.type === 'cash' ? 'Cash' : 'Tournament';
+  const typeLabel = s.type === 'cash' ? 'Cash' : s.type === 'no_chips' ? 'No Chips' : 'Tournament';
   const startedRaw = s.started_at ? (s.started_at.endsWith('Z') ? s.started_at : s.started_at + 'Z') : null;
   const dateStr = startedRaw ? new Date(startedRaw).toLocaleDateString('en-GB', { day:'2-digit', month:'short' }) : '—';
   let dot, action;
@@ -113,7 +123,7 @@ async function toggleSidebarDeleted() {
       container.innerHTML = '<p style="color:#555; font-size:0.78rem; padding:4px 0;">No deleted games.</p>';
     } else {
       container.innerHTML = sessions.map(s => {
-        const typeLabel = s.type === 'cash' ? 'Cash' : 'Tournament';
+        const typeLabel = s.type === 'cash' ? 'Cash' : s.type === 'no_chips' ? 'No Chips' : 'Tournament';
         return `<div style="display:flex; align-items:center; gap:8px; padding:7px 10px; margin-bottom:4px; border-radius:8px; background:#12141e; border:1px solid #1e2130; opacity:0.6;">
           <div style="flex:1; font-size:0.85rem; color:#888;">${typeLabel} #${s.id}</div>
           <button class="btn btn-ghost" style="padding:3px 8px; font-size:0.72rem;" onclick="restoreGame(${s.id})">Restore</button>
@@ -135,7 +145,7 @@ async function loadSidebarSessions() {
       preview.textContent = 'No games yet';
     } else {
       const s = allSidebarSessions[0];
-      const typeLabel = s.type === 'cash' ? 'Cash' : 'Tournament';
+      const typeLabel = s.type === 'cash' ? 'Cash' : s.type === 'no_chips' ? 'No Chips' : 'Tournament';
       let statusDot = '';
       if (s.status === 'open') statusDot = '🟢 ';
       else if (s.status === 'waiting') statusDot = '🟡 ';
@@ -167,7 +177,7 @@ function renderSessionsList() {
   }
 
   list.innerHTML = filtered.map(s => {
-    const typeLabel = s.type === 'cash' ? 'Cash Game' : 'Tournament';
+    const typeLabel = s.type === 'cash' ? 'Cash Game' : s.type === 'no_chips' ? 'No Chips' : 'Tournament';
     const startedRaw = s.started_at ? (s.started_at.endsWith('Z') ? s.started_at : s.started_at + 'Z') : null;
     const dateStr = startedRaw
       ? new Date(startedRaw).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })
@@ -219,7 +229,7 @@ async function loadDeletedGames() {
   }
 
   container.innerHTML = sessions.map(s => {
-    const typeLabel = s.type === 'cash' ? 'Cash Game' : 'Tournament';
+    const typeLabel = s.type === 'cash' ? 'Cash Game' : s.type === 'no_chips' ? 'No Chips' : 'Tournament';
     const date = s.started_at
       ? new Date(s.started_at + 'Z').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
       : 'Unknown date';

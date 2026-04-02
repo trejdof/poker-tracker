@@ -10,6 +10,7 @@ function backToSessions() {
   clearInterval(timerInterval);
   stopSystemClock();
   currentSession = null;
+  if (typeof ncCleanup === 'function') ncCleanup();
   showHome();
 }
 

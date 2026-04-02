@@ -12,17 +12,6 @@
   flex: 1;
   min-height: 0;
 }
-#ses-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 24px;
-  background: #1a1d27;
-  border-bottom: 1px solid #2a2d3a;
-  flex-shrink: 0;
-}
-#ses-title-group { flex: 1; display: flex; align-items: center; gap: 12px; }
-.ses-title { font-size: 1.2rem; font-weight: 700; color: #c9a84c; }
 
 #ses-clock-bar {
   display: flex;
@@ -36,6 +25,13 @@
   align-items: stretch;
 }
 #ses-clock-row1 { border-bottom: 1px solid #2a2d3a; }
+#ses-action-btns {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 20px;
+  flex-shrink: 0;
+}
 #timer-panel, #ses-chips-panel, #ses-sysclock-panel {
   flex: 1;
   text-align: center;
@@ -73,59 +69,93 @@
 }
 .ses-clock-hint { font-size: 0.75rem; margin-top: 6px; min-height: 16px; }
 
-#ses-table-wrap { flex: 1; overflow-y: auto; }
-#ses-table {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
-}
-#ses-table thead th {
-  background: #1a1d27;
-  color: #888;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-  padding: 10px 20px;
-  text-align: left;
-  border-bottom: 1px solid #2a2d3a;
-}
-#ses-table th:first-child { width: 56px; text-align: center; }
-#ses-table th:nth-child(3) { width: 160px; text-align: right; }
-#ses-table th:last-child { width: 230px; }
-#ses-table tbody tr { border-bottom: 1px solid #1a1d2a; }
-#ses-table tbody td { padding: 16px 20px; vertical-align: middle; }
-#ses-table tbody td:first-child { text-align: center; color: #777; font-weight: 600; font-size: 1rem; }
-.ses-player-name { font-weight: 700; font-size: 1.3rem; color: #fff; }
-.ses-buyin-sub { font-size: 0.8rem; color: #999; margin-top: 3px; }
-.ses-amount { text-align: right; font-size: 1.5rem; font-weight: 800; }
-.ses-actions-cell { display: flex; gap: 8px; justify-content: flex-end; }
-.ses-btn-rebuy {
-  background: transparent; border: 1px solid #c9a84c; color: #c9a84c;
-  border-radius: 6px; padding: 9px 18px; font-size: 0.88rem; font-weight: 600; cursor: pointer;
-}
-.ses-btn-cashout {
-  background: transparent; border: 1px solid #555; color: #888;
-  border-radius: 6px; padding: 9px 14px; font-size: 0.88rem; font-weight: 600; cursor: pointer;
-}
-.ses-btn-remove {
-  background: transparent; border: 1px solid #e05c5c; color: #e05c5c;
-  border-radius: 6px; padding: 9px 16px; font-size: 0.88rem; font-weight: 600; cursor: pointer;
+/* Two-panel body */
+#ses-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
 }
 
+/* Left: players grid */
+#ses-players-panel {
+  width: 66.666%;
+  overflow-y: auto;
+  border-right: 1px solid #2a2d3a;
+  padding: 14px;
+}
+#session-players-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+.ses-player-card {
+  background: #1a1d27;
+  border: 1px solid #2a2d3a;
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ses-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px;
+}
+.ses-player-name { font-weight: 700; font-size: 1rem; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ses-amount { font-size: 1.2rem; font-weight: 800; white-space: nowrap; }
+.ses-buyin-sub { font-size: 0.75rem; color: #888; }
+.ses-actions-cell { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+.ses-btn-rebuy {
+  flex: 1; background: transparent; border: 1px solid #c9a84c; color: #c9a84c;
+  border-radius: 6px; padding: 7px 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+}
+.ses-btn-cashout {
+  flex: 1; background: transparent; border: 1px solid #555; color: #888;
+  border-radius: 6px; padding: 7px 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+}
+.ses-btn-remove {
+  flex: 1; background: transparent; border: 1px solid #e05c5c; color: #e05c5c;
+  border-radius: 6px; padding: 7px 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+}
+
+/* Right: activity feed */
+#ses-activity-panel {
+  width: 33.333%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.ses-panel-label {
+  font-size: 0.65rem;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  padding: 10px 16px 8px;
+  border-bottom: 1px solid #2a2d3a;
+  flex-shrink: 0;
+  background: #12141e;
+}
+#ses-activity-feed {
+  flex: 1;
+  overflow-y: auto;
+}
+.ses-activity-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #1a1d27;
+}
+.ses-activity-player { font-weight: 600; font-size: 0.88rem; color: #ddd; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ses-activity-label { font-size: 0.78rem; color: #666; white-space: nowrap; }
+.ses-activity-amount { font-weight: 700; font-size: 0.92rem; white-space: nowrap; }
+.ses-activity-empty { color: #555; font-size: 0.85rem; text-align: center; padding: 24px 16px; }
+
 @media (max-width: 640px) {
-  #ses-header {
-    flex-wrap: wrap;
-    padding: 8px 12px;
-    gap: 6px;
-  }
-  #ses-title-group {
-    order: -1;
-    width: 100%;
-  }
-  #ses-header .btn {
-    padding: 6px 10px;
-    font-size: 0.78rem;
-  }
+  #ses-action-btns { padding: 0 10px; gap: 6px; }
+  #ses-action-btns .btn { padding: 6px 10px; font-size: 0.78rem; }
 
   #timer-panel, #ses-chips-panel, #ses-sysclock-panel {
     padding: 10px 6px 8px;
@@ -136,23 +166,7 @@
   .ses-sysclock-val{ font-size: 1.8rem; }
   .ses-clock-hint  { min-height: 12px; margin-top: 3px; }
 
-  #ses-table { table-layout: auto; }
-  #ses-table thead { display: none; }
-  #ses-table tbody tr {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    padding: 10px 14px;
-    gap: 4px 8px;
-    border-bottom: 1px solid #1a1d2a;
-  }
-  #ses-table tbody td { display: block; padding: 0; }
-  #ses-table tbody td:first-child { display: none; }
-  #ses-table tbody td:nth-child(2) { flex: 1; min-width: 0; }
-  #ses-table tbody td:nth-child(3) { margin-left: auto; }
-  .ses-amount { font-size: 1.2rem; }
-  #ses-table tbody td:last-child { width: 100%; margin-top: 6px; }
-  .ses-actions-cell { justify-content: stretch; }
-  .ses-btn-rebuy, .ses-btn-cashout, .ses-btn-remove { flex: 1; text-align: center; padding: 8px 6px; font-size: 0.82rem; }
-  .ses-player-name { font-size: 1.05rem; }
+  #ses-body { flex-direction: column; }
+  #ses-players-panel { width: 100%; border-right: none; border-bottom: 1px solid #2a2d3a; }
+  #ses-activity-panel { width: 100%; max-height: 260px; }
 }

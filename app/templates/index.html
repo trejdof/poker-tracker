@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/players.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/session.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/no_chips.css') }}">
 </head>
 <body>
 
@@ -26,6 +27,7 @@
 {% include 'pages/history_settlement.html' %}
 {% include 'pages/settlement.html' %}
 {% include 'pages/session.html' %}
+{% include 'pages/no_chips_game.html' %}
 
 {% include 'modals/qr.html' %}
 {% include 'modals/edit_player.html' %}
@@ -44,6 +46,7 @@
 <script src="{{ url_for('static', filename='js/sessions.js') }}"></script>
 <script src="{{ url_for('static', filename='js/session.js') }}"></script>
 <script src="{{ url_for('static', filename='js/profile.js') }}"></script>
+<script src="{{ url_for('static', filename='js/no_chips.js') }}"></script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

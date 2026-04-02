@@ -1,3 +1,8 @@
+function stepAmount(id, delta) {
+  const input = document.getElementById(id);
+  input.value = Math.max(0, (parseInt(input.value) || 0) + delta);
+}
+
 function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg;

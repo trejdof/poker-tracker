@@ -3,7 +3,11 @@
     <h3 id="rebuy-title">Re-buy</h3>
     <div class="form-group">
       <label>Amount</label>
-      <input id="rebuy-amount" type="number" min="100" step="100" placeholder="e.g. 1000" />
+      <div class="stepper">
+        <button type="button" class="stepper-btn" onclick="stepAmount('rebuy-amount', -100)">−</button>
+        <input id="rebuy-amount" type="number" min="0" step="100" placeholder="1000" />
+        <button type="button" class="stepper-btn" onclick="stepAmount('rebuy-amount', 100)">+</button>
+      </div>
     </div>
     <div class="form-actions">
       <button class="btn btn-primary" onclick="submitRebuy()">Confirm</button>

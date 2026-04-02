@@ -14,8 +14,16 @@ async function openSession(id, skipTimer = false, pushHistory = true) {
   timerInterval = null;
   const res = await fetch(`/api/sessions/${id}`);
   const session = await res.json();
+
+  if (session.type === 'no_chips') {
+    if (pushHistory) history.pushState({ type: 'game', id }, '', `/game/${id}`);
+    await openNoChipsGame(id);
+    return;
+  }
+
   currentSession = session;
   renderSessionScreen(session, skipTimer);
+  loadSessionActivity(id);
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
   document.getElementById('page-session').classList.add('active');
@@ -25,17 +33,10 @@ async function openSession(id, skipTimer = false, pushHistory = true) {
 
 function renderSessionScreen(session, skipTimer = false) {
   const typeLabel = session.type === 'cash' ? 'Cash Game' : 'Tournament';
-  document.getElementById('session-title').textContent = `${typeLabel} #${session.id}`;
 
   const isWaiting = session.status === 'waiting';
   const isOpen = session.status === 'open';
   const isClosed = session.status === 'closed';
-
-  document.getElementById('session-status-badge').innerHTML = isOpen
-    ? '<span style="color:#4caf82;font-size:0.82rem;font-weight:600;">● LIVE</span>'
-    : isWaiting
-      ? '<span style="color:#c9a84c;font-size:0.82rem;font-weight:600;">● WAITING</span>'
-      : '<span style="color:#888;font-size:0.82rem;">CLOSED</span>';
 
   document.getElementById('btn-close-session').style.display = isOpen ? 'inline-block' : 'none';
   document.getElementById('session-total-chips').textContent = session.total_chips.toLocaleString();
@@ -63,16 +64,15 @@ function renderSessionScreen(session, skipTimer = false) {
   }
 
   const sorted = [...session.players].sort((a, b) => a.total_buyin - b.total_buyin);
-  const list = document.getElementById('session-players-list');
+  const grid = document.getElementById('session-players-grid');
   if (sorted.length === 0) {
-    list.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#555;padding:30px 0;">
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:#555;padding:30px 0;">
       ${isWaiting ? 'No players yet — tap the timer to start, or add players first.' : 'No players in this game.'}
-    </td></tr>`;
+    </div>`;
     return;
   }
 
-  list.innerHTML = sorted.map((p, i) => {
-    const rank = i + 1;
+  grid.innerHTML = sorted.map((p) => {
     const net = -p.total_buyin;
     const netLabel = net === 0 ? '0' : (net > 0 ? '+' : '') + net.toLocaleString();
     const netColor = net > 0 ? '#4caf82' : net < 0 ? '#e05c5c' : '#888';
@@ -80,8 +80,8 @@ function renderSessionScreen(session, skipTimer = false) {
     const buyinCount = p.buyins.filter(b => b.amount > 0).length;
     const cashouts = p.buyins.filter(b => b.amount < 0).length;
     const subParts = [];
-    if (buyinCount > 1) subParts.push(`${buyinCount} buy-ins`);
-    if (cashouts > 0) subParts.push(`${cashouts} cash-out${cashouts > 1 ? 's' : ''}`);
+    if (buyinCount > 1) subParts.push(`${buyinCount}×`);
+    if (cashouts > 0) subParts.push(`${cashouts} out`);
 
     const actionsHtml = isOpen ? `
       <div class="ses-actions-cell">
@@ -92,17 +92,14 @@ function renderSessionScreen(session, skipTimer = false) {
         <button class="ses-btn-remove" onclick="removePlayerFromSession(${p.id}, '${p.player_name}')">Remove</button>
       </div>` : '';
 
-    return `<tr>
-      <td>${rank}</td>
-      <td>
+    return `<div class="ses-player-card">
+      <div class="ses-card-top">
         <div class="ses-player-name">${p.player_name}</div>
-        ${subParts.length ? `<div class="ses-buyin-sub">${subParts.join(' · ')}</div>` : ''}
-      </td>
-      <td>
         <div class="ses-amount" style="color:${netColor};">${netLabel}</div>
-      </td>
-      <td>${actionsHtml}</td>
-    </tr>`;
+      </div>
+      <div class="ses-buyin-sub">${p.total_buyin.toLocaleString()} in${subParts.length ? ' · ' + subParts.join(' · ') : ''}</div>
+      ${actionsHtml}
+    </div>`;
   }).join('');
 }
 
@@ -235,12 +232,12 @@ async function submitTransfer() {
     fetch(`/api/sessions/${currentSession.id}/players/${fromId}/buyin`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount: -amount })
+      body: JSON.stringify({ amount: -amount, type: 'transfer_out' })
     }),
     fetch(`/api/sessions/${currentSession.id}/players/${toId}/buyin`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount: amount })
+      body: JSON.stringify({ amount: amount, type: 'transfer_in' })
     })
   ]);
 
@@ -275,7 +272,7 @@ async function submitCashOut() {
   const res = await fetch(`/api/sessions/${currentSession.id}/players/${cashOutSessionPlayerId}/buyin`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ amount: -parseInt(amount) })
+    body: JSON.stringify({ amount: -parseInt(amount), type: 'cashout' })
   });
 
   if (res.ok) {
@@ -295,7 +292,7 @@ async function submitRebuy() {
   const res = await fetch(`/api/sessions/${currentSession.id}/players/${rebuySessionPlayerId}/buyin`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ amount: parseInt(amount) })
+    body: JSON.stringify({ amount: parseInt(amount), type: 'rebuy' })
   });
 
   if (res.ok) {
@@ -439,4 +436,31 @@ async function submitEndGame() {
     const err = await res.json();
     showToast(err.error);
   }
+}
+
+async function loadSessionActivity(sessionId) {
+  const res = await fetch(`/api/sessions/${sessionId}/activity`);
+  const entries = await res.json();
+  const feed = document.getElementById('ses-activity-feed');
+  if (!feed) return;
+  if (entries.length === 0) {
+    feed.innerHTML = '<div class="ses-activity-empty">No activity yet</div>';
+    return;
+  }
+  const colorMap = { buyin: '#e05c5c', rebuy: '#e05c5c', cashout: '#4caf82', transfer: '#c9a84c' };
+  feed.innerHTML = entries.map(e => {
+    if (e.type === 'transfer') {
+      return `<div class="ses-activity-item">
+        <div class="ses-activity-player">${e.from_player} <span style="color:#555;">→</span> ${e.to_player}</div>
+        <div class="ses-activity-amount" style="color:#c9a84c;">${e.amount.toLocaleString()}</div>
+      </div>`;
+    }
+    const sign = e.amount > 0 ? '+' : '';
+    const color = colorMap[e.type] || '#888';
+    return `<div class="ses-activity-item">
+      <div class="ses-activity-player">${e.player_name}</div>
+      <div class="ses-activity-label">${e.label}</div>
+      <div class="ses-activity-amount" style="color:${color};">${sign}${e.amount.toLocaleString()}</div>
+    </div>`;
+  }).join('');
 }

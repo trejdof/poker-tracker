@@ -16,10 +16,12 @@ def create_app():
     from .routes.qr import qr_bp
     from .routes.sessions import sessions_bp
     from .routes.transactions import transactions_bp
+    from .routes.no_chips import no_chips_bp
     app.register_blueprint(players_bp, url_prefix="/api")
     app.register_blueprint(qr_bp, url_prefix="/api")
     app.register_blueprint(sessions_bp, url_prefix="/api")
     app.register_blueprint(transactions_bp, url_prefix="/api")
+    app.register_blueprint(no_chips_bp, url_prefix="/api")
 
     @app.before_request
     def require_auth():
@@ -60,7 +62,7 @@ def create_app():
         return send_file(db_path, as_attachment=True, download_name=filename)
 
     with app.app_context():
-        from .models import player, session, session_player, buyin, transaction
+        from .models import player, session, session_player, buyin, transaction, hand, hand_bet
         db.create_all()
 
     return app

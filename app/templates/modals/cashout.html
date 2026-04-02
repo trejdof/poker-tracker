@@ -4,7 +4,11 @@
     <div style="font-size:0.85rem; color:#888; margin-bottom:14px;">Player removes chips from the table. This reduces their effective buy-in.</div>
     <div class="form-group">
       <label>Amount</label>
-      <input id="cashout-amount" type="number" min="100" step="100" placeholder="e.g. 500" />
+      <div class="stepper">
+        <button type="button" class="stepper-btn" onclick="stepAmount('cashout-amount', -100)">−</button>
+        <input id="cashout-amount" type="number" min="0" step="100" placeholder="500" />
+        <button type="button" class="stepper-btn" onclick="stepAmount('cashout-amount', 100)">+</button>
+      </div>
     </div>
     <div class="form-actions">
       <button class="btn btn-primary" onclick="submitCashOut()">Confirm</button>

@@ -107,11 +107,28 @@ input {
   transition: border-color 0.2s;
 }
 input:focus { border-color: #c9a84c; }
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; }
 
 .form-row { display: flex; gap: 10px; }
 .form-row .form-group { flex: 1; }
 
 .form-actions { display: flex; gap: 10px; margin-top: 6px; }
+
+/* Number stepper */
+.stepper { display: flex; align-items: center; border: 1px solid #2a2d3a; border-radius: 8px; overflow: hidden; }
+.stepper input { border: none; border-radius: 0; text-align: center; flex: 1; }
+.stepper input:focus { border-color: transparent; }
+.stepper-btn {
+  width: 52px; height: 48px; flex-shrink: 0;
+  background: #1a1d27; border: none; color: #bbb;
+  font-size: 1.5rem; line-height: 1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.stepper-btn:hover { background: #2a2d3a; color: #fff; }
+.stepper-btn:first-child { border-right: 1px solid #2a2d3a; }
+.stepper-btn:last-child  { border-left:  1px solid #2a2d3a; }
 
 /* Add form panel */
 .panel {

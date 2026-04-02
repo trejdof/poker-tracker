@@ -37,11 +37,13 @@ def create_session():
     data = request.get_json()
     type_ = data.get("type", "").strip()
 
-    if type_ not in ("cash", "tournament"):
-        return jsonify({"error": "type must be 'cash' or 'tournament'"}), 400
+    if type_ not in ("cash", "tournament", "no_chips"):
+        return jsonify({"error": "type must be 'cash', 'tournament', or 'no_chips'"}), 400
 
     default_buyin = int(data.get("default_buyin", 0))
-    session = Session(type=type_, default_buyin=default_buyin)
+    small_blind = int(data.get("small_blind", 5))
+    big_blind = int(data.get("big_blind", 10))
+    session = Session(type=type_, default_buyin=default_buyin, small_blind=small_blind, big_blind=big_blind)
     db.session.add(session)
     db.session.commit()
     return jsonify(session.to_dict()), 201
@@ -115,6 +117,25 @@ def finalize_session(session_id):
     })
 
 
+@sessions_bp.route("/sessions/<int:session_id>/unfinalize", methods=["POST"])
+def unfinalize_session(session_id):
+    session = db.get_or_404(Session, session_id)
+    if session.status != "closed":
+        return jsonify({"error": "Session is not closed"}), 400
+
+    transactions = Transaction.query.filter_by(session_id=session_id).all()
+    if any(t.confirmed for t in transactions):
+        return jsonify({"error": "Cannot reopen — some payments are already confirmed"}), 400
+
+    for t in transactions:
+        db.session.delete(t)
+
+    session.status = "open"
+    session.ended_at = None
+    db.session.commit()
+    return jsonify(session.to_dict())
+
+
 @sessions_bp.route("/sessions/<int:session_id>", methods=["DELETE"])
 def delete_session(session_id):
     session = db.get_or_404(Session, session_id)
@@ -183,6 +204,46 @@ def get_settlement(session_id):
     })
 
 
+@sessions_bp.route("/sessions/<int:session_id>/activity", methods=["GET"])
+def get_session_activity(session_id):
+    session_players = SessionPlayer.query.filter_by(session_id=session_id).all()
+    raw = []
+    for sp in session_players:
+        player = db.session.get(Player, sp.player_id)
+        for b in sp.buyins:
+            raw.append({"id": b.id, "player_name": player.name, "amount": b.amount, "type": b.type})
+
+    # Pair transfer_out with transfer_in by closest ID and matching amount
+    transfer_outs = [e for e in raw if e["type"] == "transfer_out"]
+    transfer_ins  = [e for e in raw if e["type"] == "transfer_in"]
+    used_ids = set()
+    transfers = []
+    for out in sorted(transfer_outs, key=lambda x: x["id"]):
+        candidates = [e for e in transfer_ins if e["amount"] == abs(out["amount"]) and e["id"] not in used_ids]
+        if candidates:
+            best = min(candidates, key=lambda x: abs(x["id"] - out["id"]))
+            used_ids.add(out["id"])
+            used_ids.add(best["id"])
+            transfers.append({
+                "id": min(out["id"], best["id"]),
+                "type": "transfer",
+                "from_player": out["player_name"],
+                "to_player": best["player_name"],
+                "amount": abs(out["amount"]),
+            })
+
+    label_map = {"buyin": "Buy-in", "rebuy": "Re-buy", "cashout": "Cash Out"}
+    entries = []
+    for e in raw:
+        if e["id"] in used_ids:
+            continue
+        entries.append({"id": e["id"], "type": e["type"], "player_name": e["player_name"],
+                        "amount": e["amount"], "label": label_map.get(e["type"], e["type"])})
+    entries += transfers
+    entries.sort(key=lambda x: x["id"], reverse=True)
+    return jsonify(entries)
+
+
 @sessions_bp.route("/sessions/<int:session_id>/players", methods=["POST"])
 def add_player(session_id):
     session = db.get_or_404(Session, session_id)
@@ -193,7 +254,11 @@ def add_player(session_id):
     player_id = data.get("player_id")
     amount = data.get("amount")
 
-    if not player_id or not amount or int(amount) <= 0:
+    if not player_id:
+        return jsonify({"error": "player_id is required"}), 400
+
+    is_no_chips = session.type == "no_chips"
+    if not is_no_chips and (not amount or int(amount) <= 0):
         return jsonify({"error": "player_id and amount are required"}), 400
 
     db.get_or_404(Player, player_id)
@@ -206,8 +271,10 @@ def add_player(session_id):
     db.session.add(sp)
     db.session.flush()
 
-    buyin = Buyin(session_player_id=sp.id, amount=int(amount))
-    db.session.add(buyin)
+    if not is_no_chips:
+        buyin = Buyin(session_player_id=sp.id, amount=int(amount))
+        db.session.add(buyin)
+
     db.session.commit()
     return jsonify(sp.to_dict()), 201
 
@@ -232,11 +299,12 @@ def add_buyin(session_id, session_player_id):
     sp = db.get_or_404(SessionPlayer, session_player_id)
     data = request.get_json()
     amount = data.get("amount")
+    type_ = data.get("type", "buyin")
 
     if not amount or int(amount) == 0:
         return jsonify({"error": "Valid amount is required"}), 400
 
-    buyin = Buyin(session_player_id=sp.id, amount=int(amount))
+    buyin = Buyin(session_player_id=sp.id, amount=int(amount), type=type_)
     db.session.add(buyin)
     db.session.commit()
     return jsonify(sp.to_dict()), 201

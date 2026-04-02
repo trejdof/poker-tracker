@@ -113,11 +113,31 @@ function showSettlement(result) {
   document.getElementById('page-settlement').classList.add('active');
 }
 
+async function unfinalizeGame(sessionId) {
+  if (!confirm('Reopen this game? Settlements will be cleared and you can re-enter final stacks.')) return;
+  const res = await fetch(`/api/sessions/${sessionId}/unfinalize`, { method: 'POST' });
+  if (res.ok) {
+    showToast('Game reopened');
+    await openSession(sessionId);
+    loadSessions();
+    loadSidebarSessions();
+  } else {
+    const err = await res.json();
+    showToast(err.error);
+  }
+}
+
+let currentHistorySessionId = null;
+
 async function openHistorySettlement(sessionId, title, pushHistory = true) {
   const res = await fetch(`/api/sessions/${sessionId}/settlement`);
   const data = await res.json();
+  currentHistorySessionId = sessionId;
   document.getElementById('history-settlement-title').textContent = title;
   renderSettlementContent('history-settlement-content', data.transactions, data.net_balances);
+  const hasConfirmed = data.transactions.some(t => t.confirmed);
+  const reopenBtn = document.getElementById('history-settlement-reopen-btn');
+  reopenBtn.style.display = hasConfirmed ? 'none' : '';
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-history-settlement').classList.add('active');
   if (pushHistory) history.pushState({ type: 'settlement', id: sessionId, title }, '', `/settlement/${sessionId}`);
