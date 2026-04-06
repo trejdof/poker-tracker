@@ -114,6 +114,7 @@ def get_game_state(session_id):
     return {
         "session_id": session_id,
         "status": session.status,
+        "name": session.name,
         "small_blind": session.small_blind,
         "big_blind": session.big_blind,
         "current_hand": hand_data,

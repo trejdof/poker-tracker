@@ -14,6 +14,10 @@ function openNewSession() {
   document.getElementById('new-session-buyin').value = '';
   document.getElementById('new-session-sb').value = '5';
   document.getElementById('new-session-bb').value = '10';
+  const nameEl = document.getElementById('new-session-name');
+  const nameFieldEl = document.getElementById('game-name-field');
+  if (nameEl) nameEl.value = '';
+  if (nameFieldEl) nameFieldEl.style.display = 'none';
   document.getElementById('new-session-modal').classList.add('open');
 }
 
@@ -29,6 +33,8 @@ function selectType(type) {
   });
   document.getElementById('buyin-field').style.display = type === 'no_chips' ? 'none' : '';
   document.getElementById('blinds-fields').style.display = type === 'no_chips' ? '' : 'none';
+  const gf = document.getElementById('game-name-field');
+  if (gf) gf.style.display = type === 'no_chips' ? '' : 'none';
 }
 
 async function createSession() {
@@ -37,6 +43,8 @@ async function createSession() {
   if (selectedType === 'no_chips') {
     body.small_blind = parseInt(document.getElementById('new-session-sb').value) || 5;
     body.big_blind = parseInt(document.getElementById('new-session-bb').value) || 10;
+    const name = document.getElementById('new-session-name').value.trim();
+    if (name) body.name = name;
   } else {
     body.default_buyin = parseInt(document.getElementById('new-session-buyin').value) || 0;
   }
@@ -90,13 +98,15 @@ function renderSidebarList() {
 
 function renderSidebarSession(s) {
   const typeLabel = s.type === 'cash' ? 'Cash' : s.type === 'no_chips' ? 'No Chips' : 'Tournament';
+  const displayName = s.name || `${typeLabel} #${s.id}`;
+  const escapedName = displayName.replace(/'/g, "\\'");
   const startedRaw = s.started_at ? (s.started_at.endsWith('Z') ? s.started_at : s.started_at + 'Z') : null;
   const dateStr = startedRaw ? new Date(startedRaw).toLocaleDateString('en-GB', { day:'2-digit', month:'short' }) : '—';
   let dot, action;
   if (s.status === 'open') { dot = '<span style="color:#4caf82; font-size:0.6rem;">●</span>'; action = `openSession(${s.id})`; }
   else if (s.status === 'waiting') { dot = '<span style="color:#c9a84c; font-size:0.6rem;">●</span>'; action = `openSession(${s.id})`; }
-  else if (s.unconfirmed_count > 0) { dot = '<span style="color:#e05c5c; font-size:0.6rem;">●</span>'; action = `openHistorySettlement(${s.id}, '${typeLabel} #${s.id}')`; }
-  else { dot = '<span style="color:#2a2d3a; font-size:0.6rem;">●</span>'; action = `openHistorySettlement(${s.id}, '${typeLabel} #${s.id}')`; }
+  else if (s.unconfirmed_count > 0) { dot = '<span style="color:#e05c5c; font-size:0.6rem;">●</span>'; action = `openHistorySettlement(${s.id}, '${escapedName}')`; }
+  else { dot = '<span style="color:#2a2d3a; font-size:0.6rem;">●</span>'; action = `openHistorySettlement(${s.id}, '${escapedName}')`; }
   return `
     <div onclick="${action}" style="
       display:flex; align-items:center; gap:10px; padding:9px 10px; margin-bottom:4px;
@@ -104,7 +114,7 @@ function renderSidebarSession(s) {
     " onmouseover="this.style.borderColor='#2a2d3a'" onmouseout="this.style.borderColor='#1e2130'">
       ${dot}
       <div style="flex:1; min-width:0;">
-        <div style="font-size:0.88rem; font-weight:600; color:#ccc; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${typeLabel} #${s.id}</div>
+        <div style="font-size:0.88rem; font-weight:600; color:#ccc; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${displayName}</div>
         <div style="font-size:0.72rem; color:#555;">${dateStr}</div>
       </div>
       ${s.status === 'closed' ? `<button class="btn btn-danger" style="padding:3px 8px; font-size:0.72rem;" onclick="event.stopPropagation(); deleteGame(${s.id})">✕</button>` : ''}
@@ -124,8 +134,9 @@ async function toggleSidebarDeleted() {
     } else {
       container.innerHTML = sessions.map(s => {
         const typeLabel = s.type === 'cash' ? 'Cash' : s.type === 'no_chips' ? 'No Chips' : 'Tournament';
+        const displayName = s.name || `${typeLabel} #${s.id}`;
         return `<div style="display:flex; align-items:center; gap:8px; padding:7px 10px; margin-bottom:4px; border-radius:8px; background:#12141e; border:1px solid #1e2130; opacity:0.6;">
-          <div style="flex:1; font-size:0.85rem; color:#888;">${typeLabel} #${s.id}</div>
+          <div style="flex:1; font-size:0.85rem; color:#888;">${displayName}</div>
           <button class="btn btn-ghost" style="padding:3px 8px; font-size:0.72rem;" onclick="restoreGame(${s.id})">Restore</button>
         </div>`;
       }).join('');
@@ -146,11 +157,12 @@ async function loadSidebarSessions() {
     } else {
       const s = allSidebarSessions[0];
       const typeLabel = s.type === 'cash' ? 'Cash' : s.type === 'no_chips' ? 'No Chips' : 'Tournament';
+      const displayName = s.name || `${typeLabel} #${s.id}`;
       let statusDot = '';
       if (s.status === 'open') statusDot = '🟢 ';
       else if (s.status === 'waiting') statusDot = '🟡 ';
       else if (s.unconfirmed_count > 0) statusDot = '🔴 ';
-      preview.textContent = statusDot + typeLabel + ' #' + s.id;
+      preview.textContent = statusDot + displayName;
     }
   }
 
@@ -178,6 +190,8 @@ function renderSessionsList() {
 
   list.innerHTML = filtered.map(s => {
     const typeLabel = s.type === 'cash' ? 'Cash Game' : s.type === 'no_chips' ? 'No Chips' : 'Tournament';
+    const displayName = s.name || `${typeLabel} #${s.id}`;
+    const escapedName = displayName.replace(/'/g, "\\'");
     const startedRaw = s.started_at ? (s.started_at.endsWith('Z') ? s.started_at : s.started_at + 'Z') : null;
     const dateStr = startedRaw
       ? new Date(startedRaw).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })
@@ -190,13 +204,13 @@ function renderSessionsList() {
     else badge = '<span style="color:#4caf82;font-size:0.8rem;">✓ Settled</span>';
 
     const onclick = s.status === 'closed'
-      ? `openHistorySettlement(${s.id}, '${typeLabel} #${s.id}')`
+      ? `openHistorySettlement(${s.id}, '${escapedName}')`
       : `openSession(${s.id})`;
 
     return `
       <div class="card" style="cursor:pointer;" onclick="${onclick}">
         <div class="info">
-          <div class="name">${typeLabel} #${s.id}</div>
+          <div class="name">${displayName}</div>
           <div class="sub">${dateStr}</div>
         </div>
         <div style="display:flex; align-items:center; gap:10px;">
@@ -230,13 +244,14 @@ async function loadDeletedGames() {
 
   container.innerHTML = sessions.map(s => {
     const typeLabel = s.type === 'cash' ? 'Cash Game' : s.type === 'no_chips' ? 'No Chips' : 'Tournament';
+    const displayName = s.name || `${typeLabel} #${s.id}`;
     const date = s.started_at
       ? new Date(s.started_at + 'Z').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
       : 'Unknown date';
     return `
       <div class="card" style="opacity:0.6;">
         <div class="info">
-          <div class="name">${typeLabel} #${s.id}</div>
+          <div class="name">${displayName}</div>
           <div class="sub">${date}</div>
         </div>
         <button class="btn btn-ghost" style="padding:6px 12px; font-size:0.82rem;" onclick="restoreGame(${s.id})">Restore</button>

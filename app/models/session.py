@@ -8,6 +8,7 @@ class Session(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     type = db.Column(db.String(20), nullable=False)  # 'cash', 'tournament', 'no_chips'
     status = db.Column(db.String(10), nullable=False, default="waiting")  # waiting, open, closed
+    name = db.Column(db.String(100), nullable=True)
     default_buyin = db.Column(db.Integer, nullable=False, default=0)
     small_blind = db.Column(db.Integer, nullable=False, default=5)
     big_blind = db.Column(db.Integer, nullable=False, default=10)
@@ -20,6 +21,7 @@ class Session(db.Model):
             "id": self.id,
             "type": self.type,
             "status": self.status,
+            "name": self.name,
             "default_buyin": self.default_buyin,
             "small_blind": self.small_blind,
             "big_blind": self.big_blind,

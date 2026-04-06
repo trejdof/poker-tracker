@@ -3,7 +3,7 @@
   <!-- JOIN SCREEN -->
   <div id="nc-join-screen" class="nc-join-screen" style="display:none;">
     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
-      <h2 style="margin:0;">Join Game</h2>
+      <h2 id="nc-join-title" style="margin:0;">Join Game</h2>
       <button class="btn btn-ghost" style="font-size:0.82rem;" onclick="backToSessions()">← Back</button>
     </div>
     <p style="color:#888; font-size:0.88rem; margin-bottom:16px;">Select your seat · drag arrows to set table order</p>
@@ -50,21 +50,20 @@
 
     <!-- Active hand: numpad -->
     <div id="nc-numpad" class="nc-numpad" style="display:none;">
-      <div class="nc-preset-grid">
-        <button class="nc-preset-btn" onclick="ncSelectPreset(10)">10</button>
-        <button class="nc-preset-btn" onclick="ncSelectPreset(20)">20</button>
-        <button class="nc-preset-btn" onclick="ncSelectPreset(30)">30</button>
-        <button class="nc-preset-btn" onclick="ncSelectPreset(40)">40</button>
-        <button class="nc-preset-btn" onclick="ncSelectPreset(50)">50</button>
-        <button class="nc-preset-btn" onclick="ncSelectPreset(60)">60</button>
-        <button class="nc-preset-btn" onclick="ncSelectPreset(90)">90</button>
-        <button class="nc-preset-btn" onclick="ncSelectPreset(100)">100</button>
-        <button class="nc-preset-btn" onclick="ncSelectPreset(120)">120</button>
-      </div>
-      <div class="nc-custom-row">
-        <button class="nc-custom-step" onclick="ncCustomStep(-10)">−</button>
-        <input type="text" id="nc-custom-val" class="nc-custom-display" value="10" inputmode="numeric" pattern="[0-9]*" oninput="ncOnCustomInput()">
-        <button class="nc-custom-step" onclick="ncCustomStep(10)">+</button>
+      <input type="text" id="nc-custom-val" class="nc-custom-display" inputmode="none" readonly placeholder="0">
+      <div class="nc-digit-grid">
+        <button class="nc-digit-btn" onclick="ncDigit('1')">1</button>
+        <button class="nc-digit-btn" onclick="ncDigit('2')">2</button>
+        <button class="nc-digit-btn" onclick="ncDigit('3')">3</button>
+        <button class="nc-digit-btn" onclick="ncDigit('4')">4</button>
+        <button class="nc-digit-btn" onclick="ncDigit('5')">5</button>
+        <button class="nc-digit-btn" onclick="ncDigit('6')">6</button>
+        <button class="nc-digit-btn" onclick="ncDigit('7')">7</button>
+        <button class="nc-digit-btn" onclick="ncDigit('8')">8</button>
+        <button class="nc-digit-btn" onclick="ncDigit('9')">9</button>
+        <button class="nc-digit-btn nc-digit-special" onclick="ncBackspace()">⌫</button>
+        <button class="nc-digit-btn" onclick="ncDigit('0')">0</button>
+        <button class="nc-digit-btn nc-digit-special" onclick="ncClearAmount()">C</button>
       </div>
       <button id="nc-call-btn" class="btn nc-call-btn" onclick="ncCall()" style="display:none;">CALL — <span id="nc-call-amount">0</span></button>
       <button class="btn btn-primary nc-place-bet-btn" onclick="ncPlaceBet()">PLACE BET — <span id="nc-bet-preview">10</span></button>

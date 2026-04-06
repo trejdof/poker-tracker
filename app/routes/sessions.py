@@ -43,7 +43,8 @@ def create_session():
     default_buyin = int(data.get("default_buyin", 0))
     small_blind = int(data.get("small_blind", 5))
     big_blind = int(data.get("big_blind", 10))
-    session = Session(type=type_, default_buyin=default_buyin, small_blind=small_blind, big_blind=big_blind)
+    name = data.get("name", "").strip() or None
+    session = Session(type=type_, default_buyin=default_buyin, small_blind=small_blind, big_blind=big_blind, name=name)
     db.session.add(session)
     db.session.commit()
     return jsonify(session.to_dict()), 201

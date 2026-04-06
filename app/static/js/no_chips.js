@@ -2,8 +2,7 @@ let ncSessionId = null;
 let ncMySpId = null;
 let ncState = null;
 let ncSse = null;
-let ncSelectedBet = 10;
-let ncCustomVal = 10;
+let ncSelectedBet = 0;
 
 // ─── Entry / Cleanup ───────────────────────────────────────────────────────
 
@@ -73,6 +72,11 @@ function ncStoreSeat(sessionId, spId) {
 async function ncShowJoinScreen() {
   document.getElementById('nc-join-screen').style.display = '';
   document.getElementById('nc-game-screen').style.display = 'none';
+
+  const title = document.getElementById('nc-join-title');
+  if (title && ncState) {
+    title.textContent = ncState.name || `No Chips #${ncState.session_id}`;
+  }
 
   ncRenderJoinList();
   await ncLoadAddPlayerDropdown();
@@ -204,15 +208,35 @@ function ncRenderGameScreen() {
   const roleEl = document.getElementById('nc-role-badge');
   const roleBanner = (cls, dot, label) =>
     `<div class="nc-role-banner ${cls}"><span class="nc-role-dot" style="background:currentColor;"></span>${label}</div>`;
+  // Compute UTG for open hand (3+ players only)
+  const spIds = ncState.players.map(p => p.session_player_id);
+  const n = spIds.length;
+  let utg_sp_id = null;
+  if (isOpen && n >= 3) {
+    const btnIdx = spIds.indexOf(hand.button_sp_id);
+    const bbIdx = (btnIdx + 2) % n;
+    utg_sp_id = spIds[(bbIdx + 1) % n];
+  }
+  let next_utg_sp_id = null;
+  if (isBetweenHands && hand && n >= 3) {
+    const nextBtnIdx = spIds.indexOf(hand.next_button_sp_id);
+    if (nextBtnIdx >= 0) {
+      const nextBbIdx = (nextBtnIdx + 2) % n;
+      next_utg_sp_id = spIds[(nextBbIdx + 1) % n];
+    }
+  }
+
   if (isOpen) {
     if (hand.button_sp_id === ncMySpId)      roleEl.innerHTML = roleBanner('nc-role-banner-btn', '#c9a84c', 'BUTTON');
     else if (hand.sb_sp_id === ncMySpId)     roleEl.innerHTML = roleBanner('nc-role-banner-sb',  '#4caf82', 'SMALL BLIND');
     else if (hand.bb_sp_id === ncMySpId)     roleEl.innerHTML = roleBanner('nc-role-banner-bb',  '#7aa8f0', 'BIG BLIND');
+    else if (utg_sp_id === ncMySpId)         roleEl.innerHTML = roleBanner('nc-role-banner-utg', '#c084f0', 'UTG');
     else roleEl.innerHTML = '';
   } else if (isBetweenHands && hand) {
-    if (hand.next_button_sp_id === ncMySpId) roleEl.innerHTML = roleBanner('nc-role-banner-btn', '#c9a84c', 'BUTTON — next hand');
-    else if (hand.next_sb_sp_id === ncMySpId) roleEl.innerHTML = roleBanner('nc-role-banner-sb', '#4caf82', 'SMALL BLIND — next hand');
-    else if (hand.next_bb_sp_id === ncMySpId) roleEl.innerHTML = roleBanner('nc-role-banner-bb', '#7aa8f0', 'BIG BLIND — next hand');
+    if (hand.next_button_sp_id === ncMySpId)   roleEl.innerHTML = roleBanner('nc-role-banner-btn', '#c9a84c', 'BUTTON — next hand');
+    else if (hand.next_sb_sp_id === ncMySpId)  roleEl.innerHTML = roleBanner('nc-role-banner-sb', '#4caf82', 'SMALL BLIND — next hand');
+    else if (hand.next_bb_sp_id === ncMySpId)  roleEl.innerHTML = roleBanner('nc-role-banner-bb', '#7aa8f0', 'BIG BLIND — next hand');
+    else if (next_utg_sp_id === ncMySpId)      roleEl.innerHTML = roleBanner('nc-role-banner-utg', '#c084f0', 'UTG — next hand');
     else roleEl.innerHTML = '';
   } else {
     roleEl.innerHTML = '';
@@ -237,16 +261,21 @@ function ncRenderGameScreen() {
     betsRow.innerHTML = '';
   }
 
+  // Shared: highest bet in current hand (used by call button + presets)
+  let maxBet = 0;
+  if (isOpen) {
+    const playerTotals = ncState.players.map(p =>
+      (p.current_hand_bets || []).filter(b => b.amount < 0).reduce((s, b) => s + Math.abs(b.amount), 0)
+    );
+    maxBet = Math.max(...playerTotals, 0);
+  }
+
   // Call button — show when player hasn't matched the highest bet this hand
   const callBtn = document.getElementById('nc-call-btn');
   const callAmountEl = document.getElementById('nc-call-amount');
   if (callBtn) {
     let callAmount = 0;
     if (isOpen) {
-      const playerTotals = ncState.players.map(p =>
-        p.current_hand_bets.filter(b => b.amount < 0).reduce((s, b) => s + Math.abs(b.amount), 0)
-      );
-      const maxBet = Math.max(...playerTotals, 0);
       const myBet = (me.current_hand_bets || []).filter(b => b.amount < 0).reduce((s, b) => s + Math.abs(b.amount), 0);
       callAmount = Math.max(0, maxBet - myBet);
     }
@@ -307,60 +336,57 @@ function ncPositionsHtml(sp_ids, btnSpId) {
   if (!sp_ids.length || !btnSpId) return '';
   const btnIdx = sp_ids.indexOf(btnSpId);
   const n = sp_ids.length;
-  let sbIdx, bbIdx;
-  if (n === 2) { sbIdx = btnIdx; bbIdx = (btnIdx + 1) % n; }
-  else { sbIdx = (btnIdx + 1) % n; bbIdx = (sbIdx + 1) % n; }
+  let sbIdx, bbIdx, utgIdx;
+  if (n === 2) { sbIdx = btnIdx; bbIdx = (btnIdx + 1) % n; utgIdx = -1; }
+  else { sbIdx = (btnIdx + 1) % n; bbIdx = (sbIdx + 1) % n; utgIdx = n >= 3 ? (bbIdx + 1) % n : -1; }
 
   const getName = id => (ncState.players.find(p => p.session_player_id === id) || {}).player_name || '?';
 
-  return [
+  const rows = [
     `<div class="nc-pos-row nc-pos-row-btn"><span class="nc-badge nc-badge-btn">BTN</span><span class="nc-pos-name">${getName(sp_ids[btnIdx])}</span></div>`,
     `<div class="nc-pos-row nc-pos-row-sb"><span class="nc-badge nc-badge-sb">SB</span><span class="nc-pos-name">${getName(sp_ids[sbIdx])}</span></div>`,
     `<div class="nc-pos-row nc-pos-row-bb"><span class="nc-badge nc-badge-bb">BB</span><span class="nc-pos-name">${getName(sp_ids[bbIdx])}</span></div>`,
-  ].join('');
+  ];
+  if (utgIdx >= 0) {
+    rows.push(`<div class="nc-pos-row nc-pos-row-utg"><span class="nc-badge nc-badge-utg">UTG</span><span class="nc-pos-name">${getName(sp_ids[utgIdx])}</span></div>`);
+  }
+  return rows.join('');
 }
 
 // ─── Bet selection ─────────────────────────────────────────────────────────
 
 function ncResetBetSelection() {
-  ncSelectedBet = 10;
-  ncCustomVal = 10;
+  ncSelectedBet = 0;
   const input = document.getElementById('nc-custom-val');
-  if (input) input.value = 10;
+  if (input) input.value = '';
   ncUpdateBetPreview();
-  document.querySelectorAll('.nc-preset-btn').forEach(b => b.classList.remove('nc-active'));
 }
 
-function ncSelectPreset(amount) {
-  ncSelectedBet = amount;
-  ncCustomVal = amount;
+function ncDigit(d) {
   const input = document.getElementById('nc-custom-val');
-  if (input) input.value = amount;
+  const current = input.value;
+  input.value = (current === '' || current === '0') && d !== '0' ? d : current === '0' && d === '0' ? '0' : current + d;
+  ncSelectedBet = parseInt(input.value) || 0;
   ncUpdateBetPreview();
-  document.querySelectorAll('.nc-preset-btn').forEach(b => b.classList.remove('nc-active'));
-  event.currentTarget.classList.add('nc-active');
 }
 
-function ncCustomStep(delta) {
+function ncBackspace() {
   const input = document.getElementById('nc-custom-val');
-  ncCustomVal = Math.max(10, (parseInt(input.value) || 10) + delta);
-  input.value = ncCustomVal;
-  ncSelectedBet = ncCustomVal;
+  input.value = input.value.slice(0, -1);
+  ncSelectedBet = parseInt(input.value) || 0;
   ncUpdateBetPreview();
-  document.querySelectorAll('.nc-preset-btn').forEach(b => b.classList.remove('nc-active'));
 }
 
-function ncOnCustomInput() {
+function ncClearAmount() {
   const input = document.getElementById('nc-custom-val');
-  const val = Math.max(1, parseInt(input.value) || 1);
-  ncCustomVal = val;
-  ncSelectedBet = val;
+  input.value = '';
+  ncSelectedBet = 0;
   ncUpdateBetPreview();
-  document.querySelectorAll('.nc-preset-btn').forEach(b => b.classList.remove('nc-active'));
 }
 
 function ncUpdateBetPreview() {
-  document.getElementById('nc-bet-preview').textContent = ncSelectedBet;
+  const el = document.getElementById('nc-bet-preview');
+  if (el) el.textContent = ncSelectedBet > 0 ? ncSelectedBet : '—';
 }
 
 // ─── Actions ───────────────────────────────────────────────────────────────
@@ -383,13 +409,16 @@ async function ncPlaceBet() {
     return;
   }
   const input = document.getElementById('nc-custom-val');
-  if (input) ncSelectedBet = Math.max(1, parseInt(input.value) || 1);
+  if (input) ncSelectedBet = parseInt(input.value) || 0;
+  if (ncSelectedBet <= 0) { showToast('Enter an amount'); return; }
   const res = await fetch(`/api/sessions/${ncSessionId}/hands/${ncState.current_hand.id}/bet`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ session_player_id: ncMySpId, amount: ncSelectedBet })
   });
-  if (!res.ok) {
+  if (res.ok) {
+    ncClearAmount();
+  } else {
     const err = await res.json();
     showToast(err.error);
   }
@@ -484,7 +513,8 @@ async function ncFinishGame() {
   const data = await res.json();
   ncCleanup();
   document.body.classList.remove('game-active');
-  await openHistorySettlement(data.session_id, `No Chips Game #${data.session_id}`);
+  const gameName = (ncState && ncState.name) ? ncState.name : `No Chips #${data.session_id}`;
+  await openHistorySettlement(data.session_id, gameName);
 }
 
 async function ncSubmitEndHand() {
@@ -507,10 +537,3 @@ async function ncSubmitEndHand() {
   }
 }
 
-// Clear custom input on focus (setTimeout defers past browser's own focus handling)
-document.addEventListener('DOMContentLoaded', () => {
-  const input = document.getElementById('nc-custom-val');
-  if (input) {
-    input.addEventListener('focus', () => setTimeout(() => { input.value = ''; }, 10));
-  }
-});

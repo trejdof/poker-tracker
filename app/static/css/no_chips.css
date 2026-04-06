@@ -5,6 +5,7 @@ html.nc-active,
 html.nc-active body {
   height: 100% !important;
   overflow: hidden !important;
+  touch-action: manipulation;
 }
 
 html.nc-active .page.active {
@@ -159,6 +160,14 @@ html.nc-active .page.active {
   color: #7aa8f0;
 }
 
+.nc-role-banner-utg {
+  background: #1e1020;
+  border: 2px solid #c084f0;
+  color: #c084f0;
+}
+
+.nc-pos-row-utg { background: #1e1020; border: 1px solid #c084f044; color: #d8b0f0; }
+
 .nc-role-dot {
   width: 10px;
   height: 10px;
@@ -182,6 +191,7 @@ html.nc-active .page.active {
 .nc-badge-btn { background: #2a1f00; color: #c9a84c; border: 1px solid #c9a84c; }
 .nc-badge-sb  { background: #0a2018; color: #4caf82; border: 1px solid #4caf82; }
 .nc-badge-bb  { background: #0d1a2e; color: #7aa8f0; border: 1px solid #7aa8f0; }
+.nc-badge-utg { background: #1e1020; color: #c084f0; border: 1px solid #c084f0; }
 
 .nc-stack-value {
   font-size: 1.5rem;
@@ -228,72 +238,44 @@ html.nc-active .page.active {
   gap: 7px;
 }
 
-.nc-preset-grid {
+/* Calculator digit grid */
+.nc-digit-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 7px;
-}
-
-.nc-preset-btn {
-  background: #1a1d27;
-  border: 2px solid #2a2d3a;
-  border-radius: 10px;
-  color: #ccc;
-  font-size: 1.2rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.12s;
-  width: 100%;
-  height: 58px;
-}
-
-.nc-preset-btn:active { transform: scale(0.95); }
-
-.nc-preset-btn.nc-active {
-  background: #c9a84c;
-  border-color: #c9a84c;
-  color: #0f1117;
-}
-
-/* Custom amount row */
-.nc-custom-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   flex-shrink: 0;
-  height: 48px;
 }
 
-.nc-custom-step {
-  width: 48px;
-  height: 48px;
+.nc-digit-btn {
   background: #1a1d27;
   border: 2px solid #2a2d3a;
   border-radius: 10px;
   color: #ccc;
   font-size: 1.4rem;
+  font-weight: 700;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+  width: 100%;
+  height: 58px;
+  transition: background 0.1s;
 }
-.nc-custom-step:active { background: #2a2d3a; }
+.nc-digit-btn:active { background: #2a2d3a; }
+.nc-digit-special { color: #888; font-size: 1.1rem; }
 
+/* Amount display */
 .nc-custom-display {
-  flex: 1;
-  height: 48px;
-  text-align: center;
-  font-size: 1.1rem;
+  width: 100%;
+  height: 52px;
+  text-align: right;
+  font-size: 1.8rem;
   font-weight: 700;
   color: #e0e0e0;
+  padding: 0 14px;
+  flex-shrink: 0;
   background: #12141e;
-  border: 2px solid #c9a84c55;
+  border: 2px solid #2a2d3a;
   border-radius: 10px;
   outline: none;
-  min-width: 0;
 }
-.nc-custom-display:focus { border-color: #c9a84c; }
 
 /* Buttons at bottom of numpad */
 .nc-call-btn {
