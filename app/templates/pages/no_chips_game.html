@@ -76,9 +76,42 @@
       <div id="nc-positions-list" class="nc-positions-list"></div>
       <div id="nc-waiting-text" class="nc-waiting-text">WAITING</div>
       <button id="nc-start-hand-btn" class="btn btn-primary nc-start-hand-btn" onclick="ncStartHand()" style="display:none;">START HAND</button>
+      <button id="nc-revert-hand-btn" class="btn btn-ghost nc-start-hand-btn" onclick="ncRevertLastHand()" style="display:none; margin-top:8px; font-size:0.85rem;">↩ Undo Last Hand Result</button>
       <button id="nc-finish-game-btn" class="btn btn-danger nc-start-hand-btn" onclick="ncFinishGame()" style="display:none; margin-top:8px;">FINISH GAME</button>
+      <div class="nc-stack-actions">
+        <button class="btn btn-ghost nc-stack-action-btn" onclick="ncOpenBuyinModal(ncMySpId, 'rebuy')">+ BUY IN</button>
+        <button id="nc-undo-buyin-btn" class="btn btn-ghost nc-stack-action-btn" onclick="ncUndoBuyin()" style="display:none;">↩ Undo Buy In</button>
+      </div>
+      <button id="nc-afk-btn" class="btn btn-ghost nc-start-hand-btn nc-afk-btn" onclick="ncToggleAfk()" style="margin-top:8px;">AFK — Skip Next Hand</button>
     </div>
 
+  </div>
+
+  <!-- BUY IN / CASH OUT MODAL -->
+  <div class="modal-overlay" id="nc-buyin-modal">
+    <div class="modal">
+      <h3 id="nc-buyin-modal-title">Buy In</h3>
+      <p id="nc-buyin-modal-player" style="color:#888; font-size:0.88rem; margin-bottom:12px;"></p>
+      <input type="text" id="nc-buyin-display" class="nc-custom-display" inputmode="none" readonly placeholder="0" style="margin-bottom:10px;">
+      <div class="nc-digit-grid" style="margin-bottom:10px;">
+        <button class="nc-digit-btn" onclick="ncBuyinDigit('1')">1</button>
+        <button class="nc-digit-btn" onclick="ncBuyinDigit('2')">2</button>
+        <button class="nc-digit-btn" onclick="ncBuyinDigit('3')">3</button>
+        <button class="nc-digit-btn" onclick="ncBuyinDigit('4')">4</button>
+        <button class="nc-digit-btn" onclick="ncBuyinDigit('5')">5</button>
+        <button class="nc-digit-btn" onclick="ncBuyinDigit('6')">6</button>
+        <button class="nc-digit-btn" onclick="ncBuyinDigit('7')">7</button>
+        <button class="nc-digit-btn" onclick="ncBuyinDigit('8')">8</button>
+        <button class="nc-digit-btn" onclick="ncBuyinDigit('9')">9</button>
+        <button class="nc-digit-btn nc-digit-special" onclick="ncBuyinBackspace()">⌫</button>
+        <button class="nc-digit-btn" onclick="ncBuyinDigit('0')">0</button>
+        <button class="nc-digit-btn nc-digit-special" onclick="document.getElementById('nc-buyin-display').value=''">C</button>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" onclick="ncSubmitBuyin()">Confirm</button>
+        <button class="btn btn-ghost" onclick="ncCloseBuyinModal()">Cancel</button>
+      </div>
+    </div>
   </div>
 
   <!-- WINNER PICKER MODAL -->

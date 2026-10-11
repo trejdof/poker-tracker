@@ -30,6 +30,7 @@ def migrate():
         ("sessions", "big_blind",          "INTEGER NOT NULL DEFAULT 10"),
         ("sessions", "name",               "VARCHAR(100)"),
         ("session_players", "position",    "INTEGER NOT NULL DEFAULT 0"),
+        ("session_players", "afk",         "BOOLEAN NOT NULL DEFAULT 0"),
         ("transactions", "confirmed",      "BOOLEAN NOT NULL DEFAULT 0"),
     ]
 

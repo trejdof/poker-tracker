@@ -89,16 +89,20 @@ function ncRenderJoinList() {
     return;
   }
   const canReorder = ncState.hand_number === 0;
-  list.innerHTML = ncState.players.map((p, i) => `
+  list.innerHTML = ncState.players.map((p, i) => {
+    const stackLabel = p.chips_in > 0 ? p.stack.toLocaleString() : '';
+    return `
     <div class="nc-join-card">
       ${canReorder ? `<div class="nc-reorder-btns">
         <button class="nc-reorder-btn" onclick="ncMovePlayer(${i}, -1)" ${i === 0 ? 'disabled' : ''}>↑</button>
         <button class="nc-reorder-btn" onclick="ncMovePlayer(${i}, 1)" ${i === ncState.players.length - 1 ? 'disabled' : ''}>↓</button>
       </div>` : ''}
       <span class="nc-join-name">${p.player_name}</span>
+      ${stackLabel ? `<span class="nc-join-stack">${stackLabel}</span>` : ''}
+      <button class="btn btn-ghost" style="font-size:0.78rem; padding:5px 10px;" onclick="ncOpenBuyinModal(${p.session_player_id}, '${p.chips_in > 0 ? 'rebuy' : 'buyin'}', '${p.player_name}')">${p.chips_in > 0 ? '+ Stack' : 'Buy In'}</button>
       <span class="btn btn-ghost" style="font-size:0.82rem; padding:6px 14px;" onclick="ncJoinAs(${p.session_player_id}, '${p.player_name}')">Join</span>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 async function ncMovePlayer(index, direction) {
@@ -242,11 +246,16 @@ function ncRenderGameScreen() {
     roleEl.innerHTML = '';
   }
 
-  // Stack
-  const stackVal = me.stack;
+  // Stack — show real chip count if player has bought in, otherwise show hand P&L
   const stackEl = document.getElementById('nc-stack-value');
-  stackEl.textContent = (stackVal >= 0 ? '+' : '') + stackVal.toLocaleString();
-  stackEl.className = 'nc-stack-value ' + balanceClass(stackVal);
+  if (me.chips_in > 0) {
+    stackEl.textContent = me.stack.toLocaleString();
+    stackEl.className = 'nc-stack-value ' + balanceClass(me.hand_net);
+  } else {
+    const stackVal = me.hand_net;
+    stackEl.textContent = (stackVal >= 0 ? '+' : '') + stackVal.toLocaleString();
+    stackEl.className = 'nc-stack-value ' + balanceClass(stackVal);
+  }
 
   // Bets row (current hand only)
   const betsRow = document.getElementById('nc-bets-row');
@@ -305,15 +314,19 @@ function ncRenderWaiting(hand) {
   const startBtn = document.getElementById('nc-start-hand-btn');
   const waitingText = document.getElementById('nc-waiting-text');
   const sp_ids = ncState.players.map(p => p.session_player_id);
-  const nextBtnHolder = hand ? hand.next_button_sp_id : (sp_ids[0] || null);
+  const activeSps = sp_ids.filter(id => !ncState.players.find(p => p.session_player_id === id)?.afk);
+  const nextBtnHolder = hand ? hand.next_button_sp_id : (activeSps[0] || null);
 
   const canStart = nextBtnHolder === ncMySpId && (ncState.status === 'open' || ncState.status === 'waiting');
   startBtn.style.display = canStart ? '' : 'none';
 
-  const finishBtn = document.getElementById('nc-finish-game-btn');
-  // Only show Finish Game between hands (not before any hand has been played) and to button holder
   const handsPlayed = ncState.hand_number > 0;
+
+  const finishBtn = document.getElementById('nc-finish-game-btn');
   finishBtn.style.display = (canStart && handsPlayed) ? '' : 'none';
+
+  const revertBtn = document.getElementById('nc-revert-hand-btn');
+  revertBtn.style.display = (canStart && handsPlayed) ? '' : 'none';
 
   if (canStart) {
     waitingText.style.display = 'none';
@@ -323,13 +336,35 @@ function ncRenderWaiting(hand) {
     waitingText.textContent = btnPlayer ? `Waiting for ${btnPlayer.player_name}…` : 'WAITING';
   }
 
-  const posList = document.getElementById('nc-positions-list');
-  if (sp_ids.length >= 2) {
-    const btnId = hand ? hand.next_button_sp_id : sp_ids[0];
-    posList.innerHTML = ncPositionsHtml(sp_ids, btnId);
-  } else {
-    posList.innerHTML = '';
+  // Undo buy-in button — show if the current player has any buyins
+  const me = ncState.players.find(p => p.session_player_id === ncMySpId);
+  const undoBuyinBtn = document.getElementById('nc-undo-buyin-btn');
+  if (undoBuyinBtn) undoBuyinBtn.style.display = (me && me.chips_in > 0) ? '' : 'none';
+
+  // AFK button
+  const afkBtn = document.getElementById('nc-afk-btn');
+  if (afkBtn && me) {
+    afkBtn.classList.toggle('afk-active', !!me.afk);
+    afkBtn.textContent = me.afk ? '✓ AFK — Will Skip Next Hand' : 'AFK — Skip Next Hand';
   }
+
+  const posList = document.getElementById('nc-positions-list');
+  if (activeSps.length >= 2) {
+    const btnId = hand ? hand.next_button_sp_id : activeSps[0];
+    posList.innerHTML = ncPositionsHtml(activeSps, btnId) + ncAfkPlayersHtml();
+  } else {
+    posList.innerHTML = ncAfkPlayersHtml();
+  }
+}
+
+function ncAfkPlayersHtml() {
+  const afkPlayers = ncState.players.filter(p => p.afk);
+  return afkPlayers.map(p =>
+    `<div class="nc-pos-row" style="background:#111; border:1px solid #222; color:#555;">
+      <span class="nc-badge nc-badge-afk">AFK</span>
+      <span class="nc-pos-name">${p.player_name}</span>
+    </div>`
+  ).join('');
 }
 
 function ncPositionsHtml(sp_ids, btnSpId) {
@@ -411,6 +446,11 @@ async function ncPlaceBet() {
   const input = document.getElementById('nc-custom-val');
   if (input) ncSelectedBet = parseInt(input.value) || 0;
   if (ncSelectedBet <= 0) { showToast('Enter an amount'); return; }
+  const me = ncState.players.find(p => p.session_player_id === ncMySpId);
+  if (me && me.chips_in > 0 && ncSelectedBet > me.stack) {
+    showToast(`Exceeds your stack (${me.stack.toLocaleString()})`);
+    return;
+  }
   const res = await fetch(`/api/sessions/${ncSessionId}/hands/${ncState.current_hand.id}/bet`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -447,8 +487,9 @@ async function ncCall() {
   );
   const maxBet = Math.max(...playerTotals, 0);
   const myBet = (me.current_hand_bets || []).filter(b => b.amount < 0).reduce((s, b) => s + Math.abs(b.amount), 0);
-  const callAmount = maxBet - myBet;
+  let callAmount = maxBet - myBet;
   if (callAmount <= 0) return;
+  if (me.chips_in > 0) callAmount = Math.min(callAmount, me.stack);
   const res = await fetch(`/api/sessions/${ncSessionId}/hands/${ncState.current_hand.id}/bet`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -531,6 +572,121 @@ async function ncSubmitEndHand() {
   if (res.ok) {
     ncCloseWinnerModal();
     ncResetBetSelection();
+  } else {
+    const err = await res.json();
+    showToast(err.error);
+  }
+}
+
+async function ncToggleAfk() {
+  // Optimistic update — flip immediately, SSE will confirm
+  const me = ncState && ncState.players.find(p => p.session_player_id === ncMySpId);
+  if (!me) { showToast('No seat selected'); return; }
+  const newAfk = !me.afk;
+  me.afk = newAfk;
+  const afkBtn = document.getElementById('nc-afk-btn');
+  if (afkBtn) {
+    afkBtn.classList.toggle('afk-active', newAfk);
+    afkBtn.textContent = newAfk ? '✓ AFK — Will Skip Next Hand' : 'AFK — Skip Next Hand';
+  }
+
+  try {
+    const res = await fetch(`/api/sessions/${ncSessionId}/set-afk`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_player_id: ncMySpId })
+    });
+    if (!res.ok) {
+      // Revert optimistic update on failure
+      me.afk = !newAfk;
+      if (afkBtn) {
+        afkBtn.classList.toggle('afk-active', !newAfk);
+        afkBtn.textContent = !newAfk ? '✓ AFK — Will Skip Next Hand' : 'AFK — Skip Next Hand';
+      }
+      const err = await res.json();
+      showToast(err.error);
+    }
+  } catch {
+    me.afk = !newAfk;
+    if (afkBtn) {
+      afkBtn.classList.toggle('afk-active', !newAfk);
+      afkBtn.textContent = !newAfk ? '✓ AFK — Will Skip Next Hand' : 'AFK — Skip Next Hand';
+    }
+    showToast('Network error');
+  }
+}
+
+async function ncUndoBuyin() {
+  if (!confirm('Undo your last buy-in?')) return;
+  const res = await fetch(`/api/sessions/${ncSessionId}/undo-buyin`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_player_id: ncMySpId })
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    showToast(err.error);
+  }
+}
+
+async function ncRevertLastHand() {
+  if (!confirm('Undo the last hand result? The previous button holder will be able to pick the winner again.')) return;
+  const res = await fetch(`/api/sessions/${ncSessionId}/revert-last-hand`, { method: 'POST' });
+  if (!res.ok) {
+    const err = await res.json();
+    showToast(err.error);
+  }
+}
+
+// ─── Buy In / Cash Out modal ────────────────────────────────────────────────
+
+let ncBuyinTargetSpId = null;
+let ncBuyinType = 'buyin';
+
+function ncOpenBuyinModal(spId, type, playerName) {
+  ncBuyinTargetSpId = spId;
+  ncBuyinType = type || 'buyin';
+  document.getElementById('nc-buyin-modal-title').textContent = ncBuyinType === 'rebuy' ? 'Rebuy' : 'Buy In';
+  const nameEl = document.getElementById('nc-buyin-modal-player');
+  if (playerName) {
+    nameEl.textContent = playerName;
+  } else if (ncState) {
+    const p = ncState.players.find(p => p.session_player_id === spId);
+    nameEl.textContent = p ? p.player_name : '';
+  }
+  document.getElementById('nc-buyin-display').value = '';
+  document.getElementById('nc-buyin-modal').classList.add('open');
+}
+
+function ncCloseBuyinModal() {
+  document.getElementById('nc-buyin-modal').classList.remove('open');
+  ncBuyinTargetSpId = null;
+}
+
+function ncBuyinDigit(d) {
+  const input = document.getElementById('nc-buyin-display');
+  const cur = input.value;
+  input.value = (cur === '' || cur === '0') && d !== '0' ? d : cur === '0' && d === '0' ? '0' : cur + d;
+}
+
+function ncBuyinBackspace() {
+  const input = document.getElementById('nc-buyin-display');
+  input.value = input.value.slice(0, -1);
+}
+
+async function ncSubmitBuyin() {
+  const amount = parseInt(document.getElementById('nc-buyin-display').value) || 0;
+  if (amount <= 0) { showToast('Enter an amount'); return; }
+  if (!ncBuyinTargetSpId) return;
+
+  const res = await fetch(`/api/sessions/${ncSessionId}/no-chips-buyin`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_player_id: ncBuyinTargetSpId, amount, type: ncBuyinType })
+  });
+
+  if (res.ok) {
+    ncCloseBuyinModal();
   } else {
     const err = await res.json();
     showToast(err.error);

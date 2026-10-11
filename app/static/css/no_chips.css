@@ -322,9 +322,16 @@ html.nc-active .page.active {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 0;
   padding: 16px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+.nc-waiting-area button {
+  touch-action: manipulation;
 }
 
 .nc-positions-list {
@@ -333,7 +340,7 @@ html.nc-active .page.active {
   gap: 10px;
   width: 100%;
   max-width: 320px;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .nc-pos-row {
@@ -357,7 +364,7 @@ html.nc-active .page.active {
   font-weight: 600;
   color: #444;
   letter-spacing: 0.1em;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 .nc-start-hand-btn {
@@ -367,6 +374,14 @@ html.nc-active .page.active {
   font-size: 1.1rem;
   border-radius: 10px;
 }
+
+.nc-afk-btn.afk-active {
+  border-color: #e05c5c !important;
+  color: #e05c5c !important;
+  background: #2a1010 !important;
+}
+
+.nc-badge-afk { background: #1e1e1e; color: #555; border: 1px solid #333; }
 
 /* Join screen */
 .nc-join-card {
@@ -383,6 +398,30 @@ html.nc-active .page.active {
   flex: 1;
   font-size: 0.95rem;
   color: #e0e0e0;
+}
+.nc-join-stack {
+  font-size: 0.8rem;
+  color: #c9a84c;
+  font-weight: 600;
+  min-width: 48px;
+  text-align: right;
+}
+
+/* Stack actions (buy in / cash out between hands) */
+.nc-stack-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  width: 100%;
+  max-width: 320px;
+}
+.nc-stack-action-btn {
+  flex: 1;
+  padding: 11px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  border-radius: 10px;
+  letter-spacing: 0.04em;
 }
 .nc-reorder-btns {
   display: flex;

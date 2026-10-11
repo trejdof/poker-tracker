@@ -8,6 +8,7 @@ from ..models.session_player import SessionPlayer
 from ..models.player import Player
 from ..models.hand import Hand
 from ..models.hand_bet import HandBet
+from ..models.buyin import Buyin
 from ..models.transaction import Transaction
 from ..utils.settlement import calculate_settlement
 
@@ -51,7 +52,12 @@ def get_game_state(session_id):
                     .join(Hand)
                     .filter(Hand.session_id == session_id, HandBet.session_player_id == sp.id)
                     .all())
-        stack = sum(b.amount for b in all_bets)
+        hand_net = sum(b.amount for b in all_bets)
+
+        buyins = Buyin.query.filter_by(session_player_id=sp.id).all()
+        chips_in = sum(b.amount for b in buyins if b.type in ("buyin", "rebuy", "transfer_in"))
+        chips_out = sum(b.amount for b in buyins if b.type in ("cashout", "transfer_out"))
+        stack = chips_in - chips_out + hand_net
 
         current_hand_bets = []
         if current_hand and current_hand.status == "open":
@@ -65,7 +71,11 @@ def get_game_state(session_id):
             "session_player_id": sp.id,
             "player_id": sp.player_id,
             "player_name": player.name,
+            "chips_in": chips_in,
+            "chips_out": chips_out,
+            "hand_net": hand_net,
             "stack": stack,
+            "afk": sp.afk,
             "current_hand_bets": current_hand_bets,
         })
 
@@ -95,9 +105,24 @@ def get_game_state(session_id):
                 "next_bb_sp_id": None,
             }
         else:
-            # Between hands — compute next positions
-            next_btn_idx = (btn_idx + 1) % len(sp_ids) if sp_ids else 0
-            _, next_sb_idx, next_bb_idx = _positions(sp_ids, next_btn_idx)
+            # Between hands — compute next positions using only active (non-AFK) players
+            afk_ids = {sp.id for sp in players if sp.afk}
+            active_ids = [sid for sid in sp_ids if sid not in afk_ids]
+            if active_ids:
+                # Advance button to next active player after last button
+                n_all = len(sp_ids)
+                next_btn_id = active_ids[0]
+                for i in range(1, n_all + 1):
+                    candidate = sp_ids[(btn_idx + i) % n_all]
+                    if candidate in active_ids:
+                        next_btn_id = candidate
+                        break
+                next_btn_active_idx = active_ids.index(next_btn_id)
+                _, next_sb_active_idx, next_bb_active_idx = _positions(active_ids, next_btn_active_idx)
+                next_sb_id = active_ids[next_sb_active_idx]
+                next_bb_id = active_ids[next_bb_active_idx]
+            else:
+                next_btn_id = next_sb_id = next_bb_id = None
             hand_data = {
                 "id": current_hand.id,
                 "status": "closed",
@@ -106,9 +131,9 @@ def get_game_state(session_id):
                 "button_sp_id": current_hand.button_session_player_id,
                 "sb_sp_id": sp_ids[sb_idx] if sp_ids else None,
                 "bb_sp_id": sp_ids[bb_idx] if sp_ids else None,
-                "next_button_sp_id": sp_ids[next_btn_idx] if sp_ids else None,
-                "next_sb_sp_id": sp_ids[next_sb_idx] if sp_ids else None,
-                "next_bb_sp_id": sp_ids[next_bb_idx] if sp_ids else None,
+                "next_button_sp_id": next_btn_id,
+                "next_sb_sp_id": next_sb_id,
+                "next_bb_sp_id": next_bb_id,
             }
 
     return {
@@ -142,6 +167,95 @@ def reorder_players(session_id):
     for pos, sp_id in enumerate(ordered_ids):
         players[sp_id].position = pos
 
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@no_chips_bp.route("/sessions/<int:session_id>/no-chips-buyin", methods=["POST"])
+def no_chips_buyin(session_id):
+    session = db.get_or_404(Session, session_id)
+    if session.type != "no_chips":
+        return jsonify({"error": "Not a no-chips session"}), 400
+
+    data = request.get_json()
+    session_player_id = data.get("session_player_id")
+    amount = data.get("amount")
+    type_ = data.get("type", "buyin")
+
+    if not session_player_id or not amount or int(amount) <= 0:
+        return jsonify({"error": "session_player_id and positive amount required"}), 400
+    if type_ not in ("buyin", "rebuy", "cashout"):
+        return jsonify({"error": "type must be buyin, rebuy, or cashout"}), 400
+
+    sp = db.get_or_404(SessionPlayer, session_player_id)
+    if sp.session_id != session_id:
+        return jsonify({"error": "Player not in this session"}), 400
+
+    db.session.add(Buyin(session_player_id=session_player_id, amount=int(amount), type=type_))
+    db.session.commit()
+    return jsonify({"ok": True}), 201
+
+
+@no_chips_bp.route("/sessions/<int:session_id>/set-afk", methods=["POST"])
+def set_afk(session_id):
+    session = db.get_or_404(Session, session_id)
+    if session.type != "no_chips":
+        return jsonify({"error": "Not a no-chips session"}), 400
+    data = request.get_json()
+    session_player_id = data.get("session_player_id")
+    if not session_player_id:
+        return jsonify({"error": "session_player_id required"}), 400
+    sp = db.get_or_404(SessionPlayer, session_player_id)
+    if sp.session_id != session_id:
+        return jsonify({"error": "Player not in this session"}), 400
+    sp.afk = not sp.afk
+    db.session.commit()
+    return jsonify({"afk": sp.afk})
+
+
+@no_chips_bp.route("/sessions/<int:session_id>/undo-buyin", methods=["POST"])
+def undo_buyin(session_id):
+    session = db.get_or_404(Session, session_id)
+    if session.type != "no_chips":
+        return jsonify({"error": "Not a no-chips session"}), 400
+
+    data = request.get_json()
+    session_player_id = data.get("session_player_id")
+    if not session_player_id:
+        return jsonify({"error": "session_player_id required"}), 400
+
+    sp = db.get_or_404(SessionPlayer, session_player_id)
+    if sp.session_id != session_id:
+        return jsonify({"error": "Player not in this session"}), 400
+
+    last = Buyin.query.filter_by(session_player_id=session_player_id).order_by(Buyin.id.desc()).first()
+    if not last:
+        return jsonify({"error": "No buy-in to undo"}), 400
+
+    db.session.delete(last)
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@no_chips_bp.route("/sessions/<int:session_id>/revert-last-hand", methods=["POST"])
+def revert_last_hand(session_id):
+    session = db.get_or_404(Session, session_id)
+    if session.type != "no_chips":
+        return jsonify({"error": "Not a no-chips session"}), 400
+
+    # Must have no currently open hand
+    open_hand = Hand.query.filter_by(session_id=session_id, status="open").first()
+    if open_hand:
+        return jsonify({"error": "End the current hand first"}), 400
+
+    last_hand = Hand.query.filter_by(session_id=session_id).order_by(Hand.id.desc()).first()
+    if not last_hand or last_hand.status != "closed":
+        return jsonify({"error": "No completed hand to revert"}), 400
+
+    # Delete win bets from this hand
+    HandBet.query.filter_by(hand_id=last_hand.id, type="win").delete()
+    last_hand.status = "open"
+    last_hand.remainder = 0
     db.session.commit()
     return jsonify({"ok": True})
 
@@ -262,25 +376,40 @@ def start_hand(session_id):
     if open_hand:
         return jsonify({"error": "A hand is already in progress"}), 400
 
-    players = _player_order(session_id)
-    if len(players) < 2:
-        return jsonify({"error": "Need at least 2 players"}), 400
+    all_players = _player_order(session_id)
+    active_players = [sp for sp in all_players if not sp.afk]
+    if len(active_players) < 2:
+        return jsonify({"error": "Need at least 2 active players"}), 400
 
-    sp_ids = [sp.id for sp in players]
+    all_sp_ids = [sp.id for sp in all_players]
+    active_sp_ids = [sp.id for sp in active_players]
     last_hand = Hand.query.filter_by(session_id=session_id).order_by(Hand.id.desc()).first()
     carry_over = 0
 
     if last_hand is None:
-        btn_sp_id = sp_ids[0]
+        btn_sp_id = active_sp_ids[0]
     else:
         carry_over = last_hand.remainder
-        if last_hand.button_session_player_id in sp_ids:
-            prev_idx = sp_ids.index(last_hand.button_session_player_id)
-            btn_sp_id = sp_ids[(prev_idx + 1) % len(sp_ids)]
+        last_btn = last_hand.button_session_player_id
+        if last_btn in all_sp_ids:
+            prev_idx = all_sp_ids.index(last_btn)
+            n_all = len(all_sp_ids)
+            btn_sp_id = active_sp_ids[0]
+            for i in range(1, n_all + 1):
+                candidate = all_sp_ids[(prev_idx + i) % n_all]
+                if candidate in active_sp_ids:
+                    btn_sp_id = candidate
+                    break
         else:
-            btn_sp_id = sp_ids[0]
+            btn_sp_id = active_sp_ids[0]
 
-    btn_idx = sp_ids.index(btn_sp_id)
+    # Reset AFK flags now that we've determined who plays this hand
+    for sp in all_players:
+        if sp.afk:
+            sp.afk = False
+
+    btn_idx = active_sp_ids.index(btn_sp_id)
+    sp_ids = active_sp_ids
     _, sb_idx, bb_idx = _positions(sp_ids, btn_idx)
 
     hand = Hand(
@@ -318,6 +447,19 @@ def place_bet(session_id, hand_id):
     sp = db.get_or_404(SessionPlayer, session_player_id)
     if sp.session_id != session_id:
         return jsonify({"error": "Player not in this session"}), 400
+
+    # Enforce stack limit if player has bought in
+    buyins = Buyin.query.filter_by(session_player_id=session_player_id).all()
+    chips_in = sum(b.amount for b in buyins if b.type in ("buyin", "rebuy", "transfer_in"))
+    if chips_in > 0:
+        chips_out = sum(b.amount for b in buyins if b.type in ("cashout", "transfer_out"))
+        all_bets = (HandBet.query.join(Hand)
+                    .filter(Hand.session_id == session_id, HandBet.session_player_id == session_player_id)
+                    .all())
+        hand_net = sum(b.amount for b in all_bets)
+        current_stack = chips_in - chips_out + hand_net
+        if int(amount) > current_stack:
+            return jsonify({"error": f"Bet exceeds your stack ({current_stack})"}), 400
 
     db.session.add(HandBet(hand_id=hand_id, session_player_id=session_player_id, amount=-int(amount), type="bet"))
     db.session.commit()
